@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": ["Read(**)"],
+    "ask": ["Edit(**/*.md)", "Write(**/*.md)"],
+    "deny": [
+      "Bash(rm*)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import sys, json, os; inp = json.load(sys.stdin); path = inp.get('file_path', ''); sys.exit(0 if path.endswith('.md') else 2)\""
+          }
+        ]
+      }
+    ]
+  }
+}
