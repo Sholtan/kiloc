@@ -41,8 +41,8 @@ class BCDataDataset(Dataset):
             root: Path,
             split: str,
             target_transform: Callable,
-            image_transform: Callable | None,
-            joint_transform: Callable | None,
+            image_transform: Callable | None = None,
+            joint_transform: Callable | None = None,
     ) -> None:
         self.root = Path(root)
         self.split = split
@@ -98,7 +98,7 @@ class BCDataDataset(Dataset):
             coords = dset[:]
         return coords
 
-    def __getitem__(self, idx: int) -> Any:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Loads sample image and its positive and negative cells annotations. Converts annotations to heatmaps.
 
@@ -110,7 +110,7 @@ class BCDataDataset(Dataset):
         img_path, pos_ann_path, neg_ann_path = self.samples[idx]
 
         img: NDArray[np.uint8] = cv2.imread(
-            img_path)    # pixel value range: 0 - 255, BGR, (H, W, C)
+            str(img_path))    # pixel value range: 0 - 255, BGR, (H, W, C)
         if img is None:
             raise RuntimeError(f"Failed to read image at {img_path}")
 
@@ -140,6 +140,5 @@ class BCDataDataset(Dataset):
         pos_heatmap = self.target_transform(pos_pts)
         neg_heatmap = self.target_transform(neg_pts)
 
-        heatmap = np.stack((pos_heatmap, neg_heatmap), axis=0)
-        heatmap_tensor: torch.Tensor = torch.from_numpy(heatmap)
-        return img_tensor, heatmap_tensor
+        heatmap = torch.cat([pos_heatmap, neg_heatmap], dim=0)
+        return img_tensor, heatmap
