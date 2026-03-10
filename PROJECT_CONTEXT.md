@@ -24,32 +24,16 @@ List things this project is explicitly not trying to solve yet.
 ## Current status
 
 ### Current stage
-Examples:
-- dataset preparation
-- baseline implementation
-- training loop stabilization
-- metric validation
-- ablation study
-- paper reproduction
-- model redesign
-
-[TO FILL]
+baseline implementation
 
 ### Current active task
-State the one task currently in focus.
-
-[TO FILL]
+None — dataset stage complete. Ready to start model definition (ResNet34 + FPN).
 
 ### Current blockers
-List the main things slowing progress right now.
-
-- [TO FILL]
-- [TO FILL]
+None.
 
 ### Next milestone
-What concrete result should be achieved next?
-
-[TO FILL]
+ResNet34 + FPN backbone implemented and producing output tensors of the correct shape for the localization head.
 
 ---
 
@@ -122,10 +106,10 @@ Examples:
 - resize rules
 - unit definitions
 
-- Image/tensor shape convention: [TO FILL]
-- Coordinate convention: [TO FILL]
-- Label convention: [TO FILL]
-- Preprocessing convention: [TO FILL]
+- Image/tensor shape convention: `(C, H, W)` — channels first
+- Coordinate convention: `(x, y)` in annotation files; heatmap indexed as `heatmap[y, x]`
+- Label convention: channel 0 = positive cells, channel 1 = negative cells
+- Preprocessing convention: BGR→RGB, divide by 255, `torch.float32`
 - Augmentation convention: [TO FILL]
 
 ---

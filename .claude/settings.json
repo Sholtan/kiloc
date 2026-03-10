@@ -1,7 +1,12 @@
 {
   "permissions": {
-    "allow": ["Read(**)"],
-    "ask": ["Edit(**/*.md)", "Write(**/*.md)"],
+    "allow": [
+      "Read(**)"
+    ],
+    "ask": [
+      "Edit(**/*.md)",
+      "Write(**/*.md)"
+    ],
     "deny": [
       "Bash(rm*)",
       "Bash(git push --force*)",
@@ -15,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import sys, json, os; inp = json.load(sys.stdin); path = inp.get('file_path', ''); sys.exit(0 if path.endswith('.md') else 2)\""
+            "command": "python3 -c \"import sys, json; inp = json.load(sys.stdin); path = inp.get('path', inp.get('file_path', '')); sys.exit(0 if (not path or path.endswith('.md')) else 2)\""
           }
         ]
       }
