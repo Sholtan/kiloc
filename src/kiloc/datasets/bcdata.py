@@ -98,7 +98,7 @@ class BCDataDataset(Dataset):
             coords = dset[:]
         return coords
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, NDArray[np.int64], NDArray[np.int64]]:
         """
         Loads sample image and its positive and negative cells annotations. Converts annotations to heatmaps.
 
@@ -106,6 +106,8 @@ class BCDataDataset(Dataset):
         -------
         image: torch.Tensor (3, H, W) float32
         heatmap: (2, H', W') float32
+        pos_pts: NDArray (N, 2) np.int64, numpy array with pixel coordinates of positive cells
+        neg_pts: NDArray (N, 2) np.int64, numpy array with pixel coordinates of negative cells
         """
         img_path, pos_ann_path, neg_ann_path = self.samples[idx]
 
@@ -117,7 +119,7 @@ class BCDataDataset(Dataset):
         img_scaled: NDArray[np.float32] = cv2.cvtColor(
             img, cv2.COLOR_BGR2RGB).astype(np.float32)/255.0
 
-        img_tensor: torch.Tensor = torch.from_numpy(
+        img: torch.Tensor = torch.from_numpy(
             img_scaled).permute(2, 0, 1).contiguous()
 
         # Load point annotations as numpy array (shape (N, 2))
@@ -129,16 +131,29 @@ class BCDataDataset(Dataset):
         # updated point coordinates. If no joint transform is provided,
         # image and points lists remain umchanged.
         if self.joint_transform is not None:
-            img_tensor, pos_pts, neg_pts = self.joint_transform(
-                img_tensor, pos_pts, neg_pts)
+            img, pos_pts, neg_pts = self.joint_transform(
+                img, pos_pts, neg_pts)
 
         # Apply image-only transform if provided.
         if self.image_transform is not None:
-            img_tensor = self.image_transform(img_tensor)
+            img = self.image_transform(img)
 
         # Generate localization heatmaps (peak-normalized) for pos and neg annotations
         pos_heatmap = self.target_transform(pos_pts)
         neg_heatmap = self.target_transform(neg_pts)
 
-        heatmap = torch.cat([pos_heatmap, neg_heatmap], dim=0)
-        return img_tensor, heatmap
+        heatmaps = torch.cat([pos_heatmap, neg_heatmap], dim=0)
+        return img, heatmaps, pos_pts, neg_pts
+
+
+def collate_fn(batch):
+    """
+    Custom collate function used by Dataloader
+
+    """
+    img_tuple, heatmaps_tuple, pos_pts_tuple, neg_pts_tuple = zip(*batch)
+
+    img_batch = torch.stack(img_tuple, dim=0)  # (B, 3, H, W)
+    heatmaps_batch = torch.stack(heatmaps_tuple, dim=0)
+
+    return img_batch, heatmaps_batch, pos_pts_tuple, neg_pts_tuple
