@@ -37,3 +37,35 @@
 - Reason: scripts are rerunnable without kernel restarts, version-controlled, and consistent with project entry-point conventions
 - Alternatives considered: notebook with `%autoreload` (valid but less clean for repeatable checks)
 - Consequence: `scripts/` is the location for all debug/sanity entry points
+
+---
+
+## 10-03-2026 - build_resnet34_backbone as factory function
+- Decision: backbone instantiation wrapped in `build_resnet34_backbone(pretrained: bool)` factory function; not a module-level instance
+- Reason: module-level instantiation downloads weights at import time; also causes the bug of calling `.forward()` instead of constructing a new module
+- Alternatives considered: module-level variable (tried first, caused two bugs)
+- Consequence: always call `build_resnet34_backbone(pretrained=...)` to get a backbone instance
+
+---
+
+## 10-03-2026 - KiLocNet: localization only, two heads
+- Decision: `KiLocNet` has two heads (`pos_head`, `neg_head`) producing `(B, 2, 160, 160)`; no density or count heads
+- Reason: original draft included 4 heads (loc + density × 2); simplified to match stated goal of localization only
+- Alternatives considered: 4-head design with density maps and scalar counts (rejected — scope creep for baseline)
+- Consequence: `forward()` returns a single tensor `loc_hm (B, 2, 160, 160)`
+
+---
+
+## 10-03-2026 - HeatmapHead outputs raw logits, no final activation
+- Decision: `HeatmapHead.forward` ends with a 1×1 conv, no sigmoid
+- Reason: defers activation to the loss; allows numerically stable `BCEWithLogitsLoss`
+- Alternatives considered: sigmoid inside head (couples head to a specific loss)
+- Consequence: loss must use `BCEWithLogitsLoss` or apply `torch.sigmoid` before MSE — must decide before writing loss
+
+---
+
+## 10-03-2026 - configs/paths.yaml gitignored
+- Decision: `configs/paths.yaml` is not committed; each machine maintains its own copy
+- Reason: contains absolute machine-specific paths
+- Alternatives considered: committing with placeholder values; environment variables
+- Consequence: new machines must create their own `configs/paths.yaml`

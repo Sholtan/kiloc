@@ -27,13 +27,14 @@ List things this project is explicitly not trying to solve yet.
 baseline implementation
 
 ### Current active task
-None — dataset stage complete. Ready to start model definition (ResNet34 + FPN).
+Loss function — `src/kiloc/losses/`
 
 ### Current blockers
-None.
+- Must decide MSE vs focal loss before implementing
+- `HeatmapHead` outputs raw logits (no sigmoid) — loss must use `BCEWithLogitsLoss` or apply sigmoid explicitly
 
 ### Next milestone
-ResNet34 + FPN backbone implemented and producing output tensors of the correct shape for the localization head.
+Loss function implemented; single training step runs without error and produces a finite loss value.
 
 ---
 
