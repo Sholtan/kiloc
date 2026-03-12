@@ -1,5 +1,29 @@
 # Experiments
 
+## 2026-03-12 — debug_weighted_mse.py smoke test
+
+- **Goal:** confirm `sigmoid_weighted_mse_loss` runs without error and returns a finite scalar
+- **Config:** random `pred_logits (2,2,160,160)`, random `target (2,2,160,160)` in `[0,1]`; `alpha_pos=100`, `alpha_neg=100`, `q=2`
+- **Hypothesis:** loss is finite scalar, no crash
+- **Result:** passed
+- **Observations:** loss value finite; no shape or device errors
+- **Conclusion:** weighted MSE implementation is correct for standard input
+- **Next action:** smoke test focal loss, then write training entry point
+
+---
+
+## 2026-03-12 — debug_focal_loss.py smoke test
+
+- **Goal:** confirm `sigmoid_focal_loss` runs without error and returns a finite scalar after bug fixes
+- **Config:** random `pred_logits (2,2,160,160)`, random `target (2,2,160,160)` in `[0,1]`; `alpha=2`, `beta=4`; `n_cells=50`
+- **Hypothesis:** loss is finite scalar after fixing inverted mask, device/dtype, and log clamp
+- **Result:** passed after three fixes
+- **Observations:** original code had inverted peak/background mask, CPU-only intermediate tensor, no log clamp — all three caused incorrect or unstable output
+- **Conclusion:** focal loss implementation correct after fixes; peak mask logic must be tested explicitly in any future modifications
+- **Next action:** write training entry point, run first training experiment
+
+---
+
 ## 2026-03-10 — debug_model.py sanity check
 
 - **Goal:** verify KiLocNet produces correct output shapes and gradients flow correctly

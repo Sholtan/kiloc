@@ -27,14 +27,14 @@ List things this project is explicitly not trying to solve yet.
 baseline implementation
 
 ### Current active task
-Loss function — `src/kiloc/losses/`
+Evaluation module — `src/kiloc/evaluation/` (decode + metrics), then `val_one_epoch`, then `scripts/train.py`
 
 ### Current blockers
-- Must decide MSE vs focal loss before implementing
-- `HeatmapHead` outputs raw logits (no sigmoid) — loss must use `BCEWithLogitsLoss` or apply sigmoid explicitly
+- `val_one_epoch` cannot be written until `evaluation/decode.py` and `evaluation/metrics.py` exist
+- `scripts/train.py` entry point not written yet
 
 ### Next milestone
-Loss function implemented; single training step runs without error and produces a finite loss value.
+First full training run completes: train/val loss logged, P/R/F1 reported on validation set.
 
 ---
 
@@ -230,8 +230,8 @@ Examples:
 - [TO FILL]
 
 ### Technical debt
-- [TO FILL]
-- [TO FILL]
+- `BCDataDataset`: `target_transform=None` optional path not implemented — dataset crashes without a heatmap generator; deferred
+- `debug_dataset.py`: written for old 2-tuple `__getitem__`; needs updating for 4-tuple `(img, heatmap, pos_pts, neg_pts)`
 
 ### Areas needing refactor
 - [TO FILL]

@@ -69,3 +69,35 @@
 - Reason: contains absolute machine-specific paths
 - Alternatives considered: committing with placeholder values; environment variables
 - Consequence: new machines must create their own `configs/paths.yaml`
+
+---
+
+## 12-03-2026 - Implement both MSE and focal loss variants; compare by experiment
+- Decision: both `sigmoid_weighted_mse_loss` and `sigmoid_focal_loss` are implemented; choice between them deferred to experimental comparison
+- Reason: no strong prior for which performs better on BCData at this scale; both are standard choices
+- Alternatives considered: MSE only (simpler), focal only (theoretically stronger for sparse targets)
+- Consequence: first training experiment must run both and compare val P/R/F1 before committing to one
+
+---
+
+## 12-03-2026 - BCDataDataset.__getitem__ returns 4-tuple with raw point arrays
+- Decision: `__getitem__` returns `(img_tensor, heatmap_tensor, pos_pts, neg_pts)` where `pos_pts`/`neg_pts` are `NDArray[np.int64]`
+- Reason: `number_of_cells` for focal loss normalization must come from raw annotations (heatmap-derived count is unreliable with large sigma); coordinates also needed for future P/R/F1 evaluation
+- Alternatives considered: returning `n_cells` as a scalar (rejected — loses coordinate information needed for evaluation)
+- Consequence: requires custom `collate_fn`; training loop unpacks 4-tuple; `debug_dataset.py` needs updating
+
+---
+
+## 12-03-2026 - Focal loss peak mask uses threshold, not equality
+- Decision: `mask = target >= 0.99` identifies peak pixels in the focal loss
+- Reason: floating point equality `target == 1.0` is fragile; large sigma could produce multiple sub-1.0 peaks
+- Alternatives considered: `target == 1.0` (works for current sigma but fragile), `target > 0.5` (too broad)
+- Consequence: if sigma is changed significantly, threshold should be revisited
+
+---
+
+## 12-03-2026 - No LR scheduler for baseline
+- Decision: fixed learning rate for the first training run; no scheduler
+- Reason: adds complexity before confirming the training pipeline works at all
+- Alternatives considered: CosineAnnealingLR (preferred long-term), ReduceLROnPlateau
+- Consequence: add `CosineAnnealingLR` after first successful training run is confirmed
