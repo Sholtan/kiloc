@@ -101,3 +101,27 @@
 - Reason: adds complexity before confirming the training pipeline works at all
 - Alternatives considered: CosineAnnealingLR (preferred long-term), ReduceLROnPlateau
 - Consequence: add `CosineAnnealingLR` after first successful training run is confirmed
+
+---
+
+## 12-03-2026 - compute_metrics returns raw counts, not ratios
+- Decision: `compute_metrics(pred_pts, gt_pts, radius)` returns `(tp, fp, fn)` as ints, not precision/recall/F1
+- Reason: per-sample ratios cannot be correctly averaged across a dataset; counts must be accumulated first, then divided once at epoch level
+- Alternatives considered: returning per-sample P/R/F1 and averaging (incorrect for sparse or empty samples)
+- Consequence: caller (`val_one_epoch`) is responsible for epoch-level accumulation and final ratio computation
+
+---
+
+## 12-03-2026 - Checkpoint saved on best val loss, not best F1
+- Decision: `run_train.py` saves checkpoint when `total_loss_val < best_val_loss`
+- Reason: F1 requires a threshold and decoder settings to be meaningful; val loss is a direct model signal available every epoch; simpler for the baseline
+- Alternatives considered: best val F1 (preferred long-term once decoder settings are tuned)
+- Consequence: saved checkpoint may not correspond to best F1; revisit after first experiments confirm decoder threshold
+
+---
+
+## 12-03-2026 - matching_radius=10 in run_train.py baseline
+- Decision: `matching_radius=10` pixels (image space) used in `val_one_epoch` for the first training run
+- Reason: conservative choice for initial run; BCData cells are visible at 640×640 and 10px gives reasonable slack for imprecise early-training predictions
+- Alternatives considered: `matching_radius=6` (tighter, standard), `matching_radius=15` (too loose)
+- Consequence: reported F1 at radius=10 will be higher than at radius=6; compare both once model converges

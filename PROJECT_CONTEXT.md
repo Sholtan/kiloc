@@ -27,11 +27,10 @@ List things this project is explicitly not trying to solve yet.
 baseline implementation
 
 ### Current active task
-Evaluation module — `src/kiloc/evaluation/` (decode + metrics), then `val_one_epoch`, then `scripts/train.py`
+First training run — `python scripts/run_train.py` with `sigmoid_weighted_mse_loss`, then repeat with `sigmoid_focal_loss`
 
 ### Current blockers
-- `val_one_epoch` cannot be written until `evaluation/decode.py` and `evaluation/metrics.py` exist
-- `scripts/train.py` entry point not written yet
+- None — `scripts/run_train.py` is complete and ready to execute
 
 ### Next milestone
 First full training run completes: train/val loss logged, P/R/F1 reported on validation set.
@@ -232,6 +231,8 @@ Examples:
 ### Technical debt
 - `BCDataDataset`: `target_transform=None` optional path not implemented — dataset crashes without a heatmap generator; deferred
 - `debug_dataset.py`: written for old 2-tuple `__getitem__`; needs updating for 4-tuple `(img, heatmap, pos_pts, neg_pts)`
+- `val_one_epoch`: `print_info` debug calls (lines 75–76 of `train.py`) not yet removed
+- `compute_metrics`: no dedicated smoke test written
 
 ### Areas needing refactor
 - [TO FILL]
