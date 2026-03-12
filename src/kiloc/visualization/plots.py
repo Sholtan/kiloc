@@ -3,6 +3,8 @@ import torch
 import matplotlib.pyplot as plt
 import cv2
 
+from numpy.typing import NDArray
+
 from kiloc.utils.debug import print_info
 
 
@@ -162,3 +164,17 @@ def plot_overlay_heatmap(image, pred_heatmap, gt_heatmap, alpha=0.4, interpolati
 
     axes[0, 0].set_ylabel("Positive")
     axes[1, 0].set_ylabel("Negative")
+
+
+def plot_points(image: torch.Tensor, points_gt: NDArray, pos_pred: NDArray):
+    '''
+
+    '''
+    print_info(image, 'image')
+    print_info(points_gt, 'points_gt')
+
+    plt.imshow(image[0].permute(1, 2, 0))
+    plt.scatter(points_gt[0][:, 0], points_gt[0][:, 1], c='blue')
+    plt.scatter(pos_pred[0][:, 0], pos_pred[0][:, 1], c='red')
+
+    plt.show()
