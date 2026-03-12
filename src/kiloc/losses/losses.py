@@ -81,9 +81,9 @@ def sigmoid_focal_loss(
     ----------
 
     """
-    number_of_cells = sum(len(x) for x in pos_pts_tuple) + sum(len(x) for x in neg_pts_tuple)
+    number_of_cells = sum(len(x) for x in pos_pts_tuple) + \
+        sum(len(x) for x in neg_pts_tuple)
     number_of_cells = max(number_of_cells, 1)
-
 
     pred = torch.sigmoid(pred_logits)
     pred = pred.clamp(min=1e-6, max=1-2e-6)
