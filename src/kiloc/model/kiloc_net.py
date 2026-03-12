@@ -15,7 +15,7 @@ class KiLocNet(nn.Module):
     Produces two localisation heatmaps (pos/neg)
     """
 
-    def __init__(self, pretrained) -> None:
+    def __init__(self, pretrained=True) -> None:
         super().__init__()
         self.fpn = FPN(in_channels=[64, 128, 256, 512], out_channels=256)
         self.backbone = build_resnet34_backbone(pretrained=pretrained)
