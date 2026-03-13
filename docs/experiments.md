@@ -1,5 +1,27 @@
 # Experiments
 
+## 2026-03-13 — First training run: sigmoid_weighted_mse_loss baseline
+
+- **Goal:** Execute first full training run end-to-end; establish baseline P/R/F1 on BCData validation split with `sigmoid_weighted_mse_loss`
+- **Config:** ResNet34 pretrained, FPN, P2 (160×160), sigma=3.0, lr=3.0e-4, weight_decay=1.0e-2, batch_size=8, epochs=24, kernel_size=3, threshold=0.5, merge_radius=1.5, matching_radius=10
+- **Loss:** `sigmoid_weighted_mse_loss`
+- **Split:** `train` for training, `validation` for evaluation
+- **Hypothesis:** pretrained ResNet34 should converge on BCData localization within ~50 epochs; baseline F1 > 0.7 expected
+- **Result (best epoch ~15):**
+  - train loss: 0.00109
+  - val loss: 0.05941
+  - val precision: 0.844
+  - val recall: 0.829
+  - val F1: **0.836**
+- **Observations:**
+  - Val loss rises from epoch ~5 while F1 continues improving until epoch ~15 — loss/metric decoupling: model produces sharper peaks than smooth Gaussian targets, increasing MSE while improving localization
+  - Precision and recall both plateau after epoch ~15; no improvement with further training
+  - Checkpoint condition changed mid-session from best val loss to best val F1 after observing decoupling
+- **Conclusion:** Baseline established. F1=0.836 at matching_radius=10 with weighted MSE. Model converges at ~15 epochs; 100 epochs is wasteful. Val loss is not a reliable signal for checkpoint selection with this loss function.
+- **Next action:** Run second experiment with `sigmoid_focal_loss` (configs/train_2.yaml, epochs=30); compare val F1 curves
+
+---
+
 ## 2026-03-12 — debug_weighted_mse.py smoke test
 
 - **Goal:** confirm `sigmoid_weighted_mse_loss` runs without error and returns a finite scalar

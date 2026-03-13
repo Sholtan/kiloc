@@ -120,6 +120,30 @@
 
 ---
 
+## 13-03-2026 - Checkpoint saved on best val F1, not best val loss
+- Decision: checkpoint condition changed from `total_loss_val < best_val_loss` to `f1 > best_f1`
+- Reason: val loss and F1 decouple with weighted MSE on heatmaps — model sharpens peaks relative to smooth Gaussian targets, which increases MSE while improving localization; val loss peaked at epoch 5 while F1 continued rising to epoch 15
+- Alternatives considered: best val loss (tried first — saves wrong epoch), combined loss+F1 threshold (unnecessary complexity)
+- Consequence: saved checkpoint corresponds to best val F1 epoch; val loss curve can be ignored as checkpoint signal for this loss function
+
+---
+
+## 13-03-2026 - Hyperparameters in YAML config, passed via --config CLI argument
+- Decision: all hyperparameters moved to `configs/train_N.yaml`; `run_train.py` accepts `--config` via argparse; config is copied into run directory at start
+- Reason: hardcoded parameters in scripts are not reproducible; config file becomes the artifact that documents the exact settings of each run
+- Alternatives considered: argparse for every parameter (too verbose), environment variables (non-standard for ML configs)
+- Consequence: to start a new experiment, create a new `configs/train_N.yaml`; running without `--config` uses `configs/train_1.yaml` as default
+
+---
+
+## 13-03-2026 - Run directory per experiment with timestamp
+- Decision: each training run creates `checkpoint_dir/run_YYYYMMDD_HHMMSS/` containing `config.yaml`, `history.json`, and the best checkpoint
+- Reason: single checkpoint file gets overwritten across runs; timestamped directories make all runs independently inspectable and comparable
+- Alternatives considered: run ID counter (fragile across machines), flat directory with run prefix (harder to browse)
+- Consequence: `checkpoint_dir` accumulates one subdirectory per run; each is self-contained and replayable
+
+---
+
 ## 12-03-2026 - matching_radius=10 in run_train.py baseline
 - Decision: `matching_radius=10` pixels (image space) used in `val_one_epoch` for the first training run
 - Reason: conservative choice for initial run; BCData cells are visible at 640×640 and 10px gives reasonable slack for imprecise early-training predictions

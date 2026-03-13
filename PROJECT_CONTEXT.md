@@ -24,16 +24,16 @@ List things this project is explicitly not trying to solve yet.
 ## Current status
 
 ### Current stage
-baseline implementation
+baseline established — first experiment complete, second experiment pending
 
 ### Current active task
-First training run — `python scripts/run_train.py` with `sigmoid_weighted_mse_loss`, then repeat with `sigmoid_focal_loss`
+Second training run — `python scripts/run_train.py --config configs/train_2.yaml` with `sigmoid_focal_loss`; compare val F1 to weighted MSE baseline (F1=0.836 at matching_radius=10)
 
 ### Current blockers
-- None — `scripts/run_train.py` is complete and ready to execute
+- `configs/train_2.yaml` needs to be created: copy `train_1.yaml`, change `loss: sigmoid_focal_loss`, set `epochs: 30`
 
 ### Next milestone
-First full training run completes: train/val loss logged, P/R/F1 reported on validation set.
+Focal loss run completes; loss function comparison decided; CosineAnnealingLR added to winner config.
 
 ---
 
@@ -232,7 +232,7 @@ Examples:
 - `BCDataDataset`: `target_transform=None` optional path not implemented — dataset crashes without a heatmap generator; deferred
 - `debug_dataset.py`: written for old 2-tuple `__getitem__`; needs updating for 4-tuple `(img, heatmap, pos_pts, neg_pts)`
 - `val_one_epoch`: `print_info` debug calls (lines 75–76 of `train.py`) not yet removed
-- `compute_metrics`: no dedicated smoke test written
+- `compute_metrics`: `scripts/debug/debug_metrics.py` exists but has unused `import torch` and no success print — minor
 
 ### Areas needing refactor
 - [TO FILL]
