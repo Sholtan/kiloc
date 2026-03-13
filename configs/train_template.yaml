@@ -12,3 +12,9 @@ kernel_size: 3
 threshold: 0.5
 merge_radius: 1.5
 matching_radius: 10
+scheduler:
+  name: ReduceLROnPlateau
+  mode: max         # maximizing F1
+  factor: 0.5       # lr * 0.5 on plateau
+  patience: 5      # epochs wait before reducing
+  min_lr: 1.0e-6    # floor

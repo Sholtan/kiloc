@@ -44,6 +44,8 @@ def main(config_path):
     out_hw = cfg['out_hw']
     in_hw = cfg['in_hw']
 
+    
+
     # evaluation settings:
     kernel_size = cfg['kernel_size']
     threshold = cfg['threshold']
@@ -82,9 +84,8 @@ def main(config_path):
     if torch.cuda.is_available():
         device = 'cuda'
     model = model.to(device)
+    
     # build optimizer
-    
-    
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr = lr,
@@ -92,7 +93,17 @@ def main(config_path):
     )
 
 
-
+    # build scheduler
+    sch_cfg = cfg["scheduler"]
+    if sch_cfg["name"] == "ReduceLROnPlateau":
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer,mode=sch_cfg["mode"], 
+                                                               factor=sch_cfg["factor"], patience=sch_cfg["patience"], 
+                                                               min_lr=sch_cfg["min_lr"])
+    elif sch_cfg["name"] == "none":
+        scheduler = None
+    else:
+        raise ValueError(f"scheduler must be ReduceLROnPlateau, it's only one implemented yet")
+    
     #best_val_loss = np.inf
     best_f1 = -1.
     history = []
@@ -124,10 +135,13 @@ def main(config_path):
             "precision": precision,
             "recall": recall,
             "f1": f1,
+            "lr": optimizer.param_groups[0]['lr'],
         })
         with open(run_dir / 'history.json', 'w') as f:
             json.dump(history, f, indent=2)
-        print(f"BEST EPOCH OUT OF {i+1} was: {best_epoch}")
+        
+        if scheduler is not None:
+            scheduler.step(f1)
     
     best_path = run_dir / "kilocnet_epoch_best.pth"
     best_path.rename(run_dir / f"kilocnet_best_f1_epoch_{best_epoch}.pth")
