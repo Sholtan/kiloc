@@ -1,5 +1,5 @@
 loss: "sigmoid_weighted_mse_loss"
-epochs: 100
+epochs: 30
 batch_size: 32
 num_workers: 8
 lr: 3.0e-4

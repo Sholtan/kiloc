@@ -5,3 +5,4 @@ build/
 dist/
 images/
 checkpoints/
+configs/train_1.yaml
