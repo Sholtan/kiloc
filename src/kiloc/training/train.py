@@ -72,9 +72,6 @@ def val_one_epoch(
             out_pos, out_neg = heatmaps_to_points_batch(
                 heatmaps=pred_heatmaps, kernel_size=kernel_size, threshold=threshold, merge_radius=merge_radius)
 
-            print_info(pos_pts_tuple, "pos_pts_tuple")
-            print_info(out_pos, "out_pos")
-
             for pred, gt in zip(out_pos, pos_pts_tuple):
                 tp, fp, fn = compute_metrics(pred, gt.astype(
                     np.float32), radius=matching_radius)

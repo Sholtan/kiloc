@@ -5,6 +5,11 @@ Runs the full train/val loop
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+import json
+from datetime import datetime
+import argparse
+import yaml
+import shutil
 
 from kiloc.utils.config import get_paths
 from kiloc.datasets.bcdata import BCDataDataset, collate_fn
@@ -14,79 +19,126 @@ from kiloc.losses.losses import sigmoid_weighted_mse_loss, sigmoid_focal_loss
 from kiloc.training.train import train_one_epoch, val_one_epoch
 
 
-def main():
+def main(config_path):
+    # config parameters:
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f)
+
+    # Loss function
+    if cfg['loss'] == 'sigmoid_weighted_mse_loss':
+        criterion = sigmoid_weighted_mse_loss
+    elif cfg['loss'] == 'sigmoid_focal_loss':
+        criterion = sigmoid_focal_loss
+    else:
+        raise ValueError(f"must choose one of losses: sigmoid_weighted_mse_loss or sigmoid_focal_loss, \
+                         got {cfg['loss']} instead")
+
+    epochs = cfg['epochs']
+
+    batch_size = cfg['batch_size']
+    num_workers = cfg['num_workers']
+    lr = cfg['lr']
+    weight_decay = cfg['weight_decay']
+    is_pretrained = cfg['is_pretrained']
+    sigma = cfg['sigma']
+    out_hw = cfg['out_hw']
+    in_hw = cfg['in_hw']
+
+    # evaluation settings:
+    kernel_size = cfg['kernel_size']
+    threshold = cfg['threshold']
+    merge_radius = cfg['merge_radius']
+    matching_radius = cfg['matching_radius']
+
+
     # get the paths
-    root_dir, checkpoint_dir = get_paths(device='hpvictus')
+    root_dir, checkpoint_dir = get_paths(device='h200')
+    
+    # create run's save directory
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = checkpoint_dir / ('run_' + timestamp)
+    run_dir.mkdir(parents = True)
+
+    # save the config before run starts
+    shutil.copy(config_path, run_dir / 'config.yaml')
+    
 
     # build dataloaders
-    heatmap_gen = LocHeatmap(out_hw=(160, 160), in_hw=(
-        640, 640), sigma=3., dtype=torch.float32)
+    heatmap_gen = LocHeatmap(out_hw = out_hw, in_hw=in_hw, 
+                             sigma=sigma, dtype=torch.float32)
     dataset_train = BCDataDataset(
         root=root_dir, split='train', target_transform=heatmap_gen)
     dataset_val = BCDataDataset(
         root=root_dir, split='test', target_transform=heatmap_gen)
-    batch_size = 2
-    num_workers = 4
+
     dataloader_train = DataLoader(dataset=dataset_train, batch_size=batch_size, shuffle=True, num_workers=num_workers,
                                   collate_fn=collate_fn, pin_memory=True, drop_last=True, persistent_workers=True)
     dataloader_val = DataLoader(dataset=dataset_val, batch_size=batch_size, shuffle=False, num_workers=num_workers,
                                 collate_fn=collate_fn, pin_memory=True, drop_last=True, persistent_workers=True)
 
     # build model
-    model = KiLocNet(pretrained=True)
+    model = KiLocNet(pretrained=is_pretrained)
     device = 'cpu'
     if torch.cuda.is_available():
         device = 'cuda'
     model = model.to(device)
     # build optimizer
+    
+    
     optimizer = torch.optim.AdamW(
         model.parameters(),
-        lr=3e-4,
-        weight_decay=1e-2,
+        lr = lr,
+        weight_decay = weight_decay,
     )
 
-    # Loss function
-    # criterion = sigmoid_focal_loss
-    criterion = sigmoid_weighted_mse_loss
 
-    # evaluation settings:
-    kernel_size = 3
-    threshold = 0.5
-    merge_radius = 1.5
-    matching_radius = 10
 
-    epochs = 1
-
-    loss_arr_train = []
-    loss_arr_val = []
-
-    metrics_history = []
-
-    best_val_loss = np.inf
-
+    #best_val_loss = np.inf
+    best_f1 = -1.
+    history = []
+    best_epoch = -1
     for i in range(epochs):
         total_loss_train = train_one_epoch(model=model, criterion=criterion,
                                            optimizer=optimizer, device=device,
                                            trainloader=dataloader_train)
-        loss_arr_train.append(total_loss_train)
 
-        metrics = {}
         total_loss_val, precision, recall, f1 = val_one_epoch(model=model, criterion=criterion,
                                                               device=device, val_loader=dataloader_val,
                                                               kernel_size=kernel_size, threshold=threshold,
                                                               merge_radius=merge_radius, matching_radius=matching_radius)
         print(f"Epoch {i+1}/{epochs} | train={total_loss_train:.4f} | val={total_loss_val:.4f} | P={precision:.3f} R={recall:.3f} F1={f1:.3f}")
-        loss_arr_val.append(total_loss_val)
-        metrics["precision"] = precision
-        metrics["recall"] = recall
-        metrics["f1"] = f1
-        metrics_history.append(metrics)
 
-        if total_loss_val < best_val_loss:
-            best_val_loss = total_loss_val
-            checkpoint_path = checkpoint_dir / "kilocnet_v0_best.pth"
-            torch.save(model.state_dict(), checkpoint_path)
+
+        # save weights if val_los is new minimum
+        # trying to save best f1
+        if f1 > best_f1:  #total_loss_val < best_val_loss:
+            #best_val_loss = total_loss_val
+            best_f1 = f1
+            torch.save(model.state_dict(), run_dir / "kilocnet_epoch_best.pth")
+            best_epoch = i + 1
+
+        history.append({
+            "epoch": i+1,
+            "train_loss": total_loss_train,
+            "val_loss": total_loss_val,
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+        })
+        with open(run_dir / 'history.json', 'w') as f:
+            json.dump(history, f, indent=2)
+        print(f"BEST EPOCH OUT OF {i+1} was: {best_epoch}")
+    
+    best_path = run_dir / "kilocnet_epoch_best.pth"
+    best_path.rename(run_dir / f"kilocnet_best_f1_epoch_{best_epoch}.pth")
+    print(f"BEST EPOCH WAS: {best_epoch}")
+
+        
+
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', default='configs/train_1.yaml')
+    args = parser.parse_args()
+    main(args.config)
