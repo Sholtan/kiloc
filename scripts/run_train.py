@@ -15,24 +15,17 @@ from kiloc.utils.config import get_paths
 from kiloc.datasets.bcdata import BCDataDataset, collate_fn
 from kiloc.target_generation.heatmaps import LocHeatmap
 from kiloc.model.kiloc_net import KiLocNet
-from kiloc.losses.losses import sigmoid_weighted_mse_loss, sigmoid_focal_loss
 from kiloc.training.train import train_one_epoch, val_one_epoch
 
 
-def main(config_path):
+from kiloc.losses.losses import sigmoid_weighted_mse_loss, sigmoid_focal_loss
+
+from kiloc.losses.losses import SigmoidWeightedMSE
+
+def main(config_path, run_name):
     # config parameters:
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
-
-    # Loss function
-    if cfg['loss'] == 'sigmoid_weighted_mse_loss':
-        criterion = sigmoid_weighted_mse_loss
-    elif cfg['loss'] == 'sigmoid_focal_loss':
-        criterion = sigmoid_focal_loss
-    else:
-        raise ValueError(f"must choose one of losses: sigmoid_weighted_mse_loss or sigmoid_focal_loss, \
-                         got {cfg['loss']} instead")
-
     epochs = cfg['epochs']
 
     batch_size = cfg['batch_size']
@@ -43,6 +36,19 @@ def main(config_path):
     sigma = cfg['sigma']
     out_hw = cfg['out_hw']
     in_hw = cfg['in_hw']
+
+
+    # Loss function
+    if cfg['loss'] == 'sigmoid_weighted_mse_loss':
+        #criterion = sigmoid_weighted_mse_loss
+        criterion = SigmoidWeightedMSE(alpha_pos = cfg['alpha_pos'], alpha_neg = cfg['alpha_neg'], q = cfg['q'])
+    elif cfg['loss'] == 'sigmoid_focal_loss':
+        criterion = sigmoid_focal_loss
+    else:
+        raise ValueError(f"must choose one of losses: sigmoid_weighted_mse_loss or sigmoid_focal_loss, \
+                         got {cfg['loss']} instead")
+
+
 
     
 
@@ -58,9 +64,15 @@ def main(config_path):
     
     # create run's save directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = checkpoint_dir / ('run_' + timestamp)
+
+    if run_name:
+        run_dir = checkpoint_dir / run_name
+    else:
+        run_dir = checkpoint_dir / ('run_' + timestamp)
     run_dir.mkdir(parents = True)
 
+
+    print(f"RUN_DIR:{run_dir}")
     # save the config before run starts
     shutil.copy(config_path, run_dir / 'config.yaml')
     
@@ -164,5 +176,6 @@ def main(config_path):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default='configs/train_1.yaml')
+    parser.add_argument('--run_name', default=None)
     args = parser.parse_args()
-    main(args.config)
+    main(args.config, args.run_name)
