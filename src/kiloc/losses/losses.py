@@ -5,6 +5,7 @@ Loss functions for project: Ki-67 index assesment using CNN backbone + FPN > loc
 
 import torch
 from kiloc.utils.debug import print_info
+from dataclasses import dataclass
 
 
 
@@ -102,3 +103,38 @@ def sigmoid_focal_loss(
 
     loss = loss.sum(dim=(1, 2, 3)) / number_of_cells
     return loss.mean()
+
+
+
+@dataclass
+class SigmoidWeightedMSE:
+    """
+    Generates weighted MSE loss with certain alpha_pos and alpha_neg coefficients
+    """
+    alpha_pos: float = 100.0,
+    alpha_neg: float = 100.0,
+    q: float = 2.,
+
+    def __call__(self, 
+            pred_logits: torch.Tensor,
+            target: torch.Tensor,
+            pos_pts_tuple: tuple,
+            neg_pts_tuple: tuple,)-> torch.Tensor: 
+        """
+        """
+        pred = torch.sigmoid(pred_logits)
+
+        alpha = torch.tensor(
+            [self.alpha_pos, self.alpha_neg],
+            dtype=target.dtype,
+            device=target.device,
+        ).view(1, 2, 1, 1)
+        w = 1.0 + alpha * torch.pow(target, self.q)   # shape: (B, 2, H, W)
+        loss = w * (pred - target).pow(2)        # shape: (B, 2, H, W)
+
+        # normalize per image, per channel
+        loss = loss.sum(dim=(2, 3)) / (w.sum(dim=(2, 3)) + 1e-6)  # (B, 2)
+
+        total_loss = loss.mean()
+        return total_loss
+        
