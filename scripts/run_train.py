@@ -113,10 +113,14 @@ def main(config_path):
                                            optimizer=optimizer, device=device,
                                            trainloader=dataloader_train)
 
-        total_loss_val, precision, recall, f1 = val_one_epoch(model=model, criterion=criterion,
+        val_result = val_one_epoch(model=model, criterion=criterion,
                                                               device=device, val_loader=dataloader_val,
                                                               kernel_size=kernel_size, threshold=threshold,
                                                               merge_radius=merge_radius, matching_radius=matching_radius)
+        total_loss_val, precision, recall, f1, \
+            precision_pos, recall_pos, f1_pos, \
+                precision_neg, recall_neg, f1_neg = val_result
+        
         print(f"Epoch {i+1}/{epochs} | train={total_loss_train:.4f} | val={total_loss_val:.4f} | P={precision:.3f} R={recall:.3f} F1={f1:.3f}")
 
 
@@ -135,6 +139,12 @@ def main(config_path):
             "precision": precision,
             "recall": recall,
             "f1": f1,
+            "precision_pos": precision_pos,
+            "recall_pos": recall_pos,
+            "f1_pos": f1_pos,
+            "precision_neg": precision_neg,
+            "recall_neg": recall_neg,
+            "f1_neg": f1_neg,
             "lr": optimizer.param_groups[0]['lr'],
         })
         with open(run_dir / 'history.json', 'w') as f:

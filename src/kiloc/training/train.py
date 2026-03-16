@@ -50,7 +50,7 @@ def val_one_epoch(
     threshold: float = 0.5,
     merge_radius: float = 1.5,
     matching_radius: float = 6.0,
-) -> tuple[float, float, float, float]:    # val_loss, precision, recall, f1
+) -> tuple[float, float, float, float, float, float, float, float, float, float]:
     model.eval()
     total_loss = 0.
 
@@ -86,6 +86,25 @@ def val_one_epoch(
                 fp_neg += fp
                 fn_neg += fn
 
+
+
+    # Compute metrics for positive
+    precision_pos = tp_pos / \
+        (tp_pos + fp_pos) if (tp_pos + fp_pos) > 0 else 0.0
+    recall_pos = tp_pos / \
+        (tp_pos + fn_pos) if (tp_pos + fn_pos) > 0 else 0.0
+    f1_pos = 2 * precision_pos * recall_pos / \
+        (precision_pos + recall_pos) if (precision_pos + recall_pos) > 0 else 0.0
+
+    # Compute metrics for negative
+    precision_neg = tp_neg / \
+        (tp_neg + fp_neg) if (tp_neg + fp_neg) > 0 else 0.0
+    recall_neg = tp_neg / \
+        (tp_neg + fn_neg) if (tp_neg + fn_neg) > 0 else 0.0
+    f1_neg = 2 * precision_neg * recall_neg / \
+        (precision_neg + recall_neg) if (precision_neg + recall_neg) > 0 else 0.0
+
+    # Compute overall metrics
     tp_both = tp_pos + tp_neg
     fp_both = fp_pos + fp_neg
     fn_both = fn_pos + fn_neg
@@ -98,4 +117,6 @@ def val_one_epoch(
         (precision_both + recall_both) if (precision_both + recall_both) > 0 else 0.0
 
     total_loss /= len(val_loader)
-    return total_loss, precision_both, recall_both, f1_both
+    return total_loss, precision_both, recall_both, f1_both, \
+        precision_pos, recall_pos, f1_pos, \
+        precision_neg, recall_neg, f1_neg
