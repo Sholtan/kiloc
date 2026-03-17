@@ -96,7 +96,6 @@ def main(run_dir, split, checkpoint, thresholds):
     }
     with open(run_dir / 'threshold_search.json', 'w') as f:
         json.dump(output, f, indent=2)
-        json.dump(results, f, indent=2)
     print(f"Saved to {run_dir / 'threshold_search.json'}")
 
 
