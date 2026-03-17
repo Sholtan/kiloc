@@ -14,6 +14,35 @@ from typing import Any
 from collections.abc import Callable
 
 
+class AlbumentationsJointTransform:
+    def __init__(self, transform):
+        self.transform = transform
+
+    def __call__(self, img, pos_pts, neg_pts):
+        n_pos = len(pos_pts)
+        all_kps = pos_pts.tolist() + neg_pts.tolist()
+
+        result = self.transform(image=img, keypoints=all_kps)
+        aug_img = result['image']
+        aug_kps = result['keypoints']
+
+        aug_pos = np.array(aug_kps[:n_pos])   if n_pos > 0          else np.empty((0, 2), dtype=np.float32)
+        aug_neg = np.array(aug_kps[n_pos:])   if len(aug_kps) > n_pos else np.empty((0, 2), dtype=np.float32)
+
+        # filter out-of-bounds points (remove_invisible=False keeps them)
+        h, w = aug_img.shape[:2]
+        if len(aug_pos) > 0:
+            mask = (aug_pos[:, 0] >= 0) & (aug_pos[:, 0] < w) & \
+                   (aug_pos[:, 1] >= 0) & (aug_pos[:, 1] < h)
+            aug_pos = aug_pos[mask]
+        if len(aug_neg) > 0:
+            mask = (aug_neg[:, 0] >= 0) & (aug_neg[:, 0] < w) & \
+                   (aug_neg[:, 1] >= 0) & (aug_neg[:, 1] < h)
+            aug_neg = aug_neg[mask]
+
+        return aug_img, aug_pos, aug_neg
+
+
 class BCDataDataset(Dataset):
     """
     Parses the images and annotations for the BCData dataset.
@@ -28,9 +57,6 @@ class BCDataDataset(Dataset):
     target_transform: Callable
         Generation of heatmaps. accepts * and returns *
 
-    image_transform: Callable
-        Image augmentations that don't require modification of the target.
-
     joint_transform: Callable
         Augmnentations that require modification of both image and target. eg. rotations.
     """
@@ -41,13 +67,11 @@ class BCDataDataset(Dataset):
             root: Path,
             split: str,
             target_transform: Callable,
-            image_transform: Callable | None = None,
             joint_transform: Callable | None = None,
     ) -> None:
         self.root = Path(root)
         self.split = split
         self.target_transform = target_transform
-        self.image_transform = image_transform
         self.joint_transform = joint_transform
 
         if split not in self.SUPPORTED_SPLITS:
@@ -119,31 +143,31 @@ class BCDataDataset(Dataset):
         img_scaled: NDArray[np.float32] = cv2.cvtColor(
             img, cv2.COLOR_BGR2RGB).astype(np.float32)/255.0
 
-        img: torch.Tensor = torch.from_numpy(
-            img_scaled).permute(2, 0, 1).contiguous()
-
         # Load point annotations as numpy array (shape (N, 2))
         pos_pts: NDArray[np.int64] = self._load_points(pos_ann_path)
         neg_pts: NDArray[np.int64] = self._load_points(neg_ann_path)
+
 
         # Apply joint transform (e.g. random rotation) before any image-only
         # transformation. This transform must return a new image tensor and
         # updated point coordinates. If no joint transform is provided,
         # image and points lists remain umchanged.
         if self.joint_transform is not None:
-            img, pos_pts, neg_pts = self.joint_transform(
-                img, pos_pts, neg_pts)
+            img_scaled, pos_pts, neg_pts = self.joint_transform(img_scaled, pos_pts, neg_pts)
 
-        # Apply image-only transform if provided.
-        if self.image_transform is not None:
-            img = self.image_transform(img)
+        img_tensor: torch.Tensor = torch.from_numpy(
+            img_scaled).permute(2, 0, 1).contiguous()
+
+
+
+
 
         # Generate localization heatmaps (peak-normalized) for pos and neg annotations
         pos_heatmap = self.target_transform(pos_pts)
         neg_heatmap = self.target_transform(neg_pts)
 
         heatmaps = torch.cat([pos_heatmap, neg_heatmap], dim=0)
-        return img, heatmaps, pos_pts, neg_pts
+        return img_tensor, heatmaps, pos_pts, neg_pts
 
 
 def collate_fn(batch):
