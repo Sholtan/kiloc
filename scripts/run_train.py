@@ -12,15 +12,16 @@ import yaml
 import shutil
 
 from kiloc.utils.config import get_paths
-from kiloc.datasets.bcdata import BCDataDataset, collate_fn
+from kiloc.datasets.bcdata import BCDataDataset, collate_fn, AlbumentationsJointTransform
 from kiloc.target_generation.heatmaps import LocHeatmap
 from kiloc.model.kiloc_net import KiLocNet
 from kiloc.training.train import train_one_epoch, val_one_epoch
 
-
 from kiloc.losses.losses import sigmoid_weighted_mse_loss, sigmoid_focal_loss
-
 from kiloc.losses.losses import SigmoidWeightedMSE
+
+import albumentations as A
+
 
 def main(config_path, run_name):
     # config parameters:
@@ -42,6 +43,7 @@ def main(config_path, run_name):
     if cfg['loss'] == 'sigmoid_weighted_mse_loss':
         #criterion = sigmoid_weighted_mse_loss
         criterion = SigmoidWeightedMSE(alpha_pos = cfg['alpha_pos'], alpha_neg = cfg['alpha_neg'], q = cfg['q'])
+        #criterion = SigmoidAssymetricWeightedMSE(alpha_pos = cfg['alpha_pos'], alpha_neg = cfg['alpha_neg'], q = cfg['q'], fp_weight = cfg['fp_weight'])
     elif cfg['loss'] == 'sigmoid_focal_loss':
         criterion = sigmoid_focal_loss
     else:
@@ -77,14 +79,40 @@ def main(config_path, run_name):
     shutil.copy(config_path, run_dir / 'config.yaml')
     
 
-    # build dataloaders
+    # augmentations
+    train_tf = AlbumentationsJointTransform(A.Compose([
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.5),
+        A.RandomRotate90(p=0.75),
+        A.ShiftScaleRotate(shift_limit=0.08, scale_limit=0.10, rotate_limit=0, border_mode=0, p=0.5),
+        # A.OneOf([
+        #     A.RandomBrightnessContrast(brightness_limit=0.12, contrast_limit=0.12, p=1.0),
+        #     A.HueSaturationValue(hue_shift_limit=6, sat_shift_limit=10, val_shift_limit=8, p=1.0),
+        # ], p=0.5),
+        A.OneOf([
+            A.GaussianBlur(blur_limit=(3, 3), p=1.0),
+            A.GaussNoise(std_range=(0.005, 0.015), mean_range=(0.0, 0.0), p=1.0),
+            A.ImageCompression(quality_range=(85, 100), p=1.0),
+        ], p=0.15),
+    ], keypoint_params=A.KeypointParams(format="xy", remove_invisible=False)))
+
+
+    
     heatmap_gen = LocHeatmap(out_hw = out_hw, in_hw=in_hw, 
                              sigma=sigma, dtype=torch.float32)
+    
+    # build datasets
+    joint_tf = train_tf if cfg.get('augmentation', False) else None
+    if joint_tf:
+        print('Augmentations will be applied to the train set')
+    else:
+        print("No augmentations will be applied")
     dataset_train = BCDataDataset(
-        root=root_dir, split='train', target_transform=heatmap_gen)
+        root=root_dir, split='train', target_transform=heatmap_gen, joint_transform=joint_tf)
     dataset_val = BCDataDataset(
-        root=root_dir, split='test', target_transform=heatmap_gen)
-
+        root=root_dir, split='validation', target_transform=heatmap_gen)
+    
+    # build dataloaders
     dataloader_train = DataLoader(dataset=dataset_train, batch_size=batch_size, shuffle=True, num_workers=num_workers,
                                   collate_fn=collate_fn, pin_memory=True, drop_last=True, persistent_workers=True)
     dataloader_val = DataLoader(dataset=dataset_val, batch_size=batch_size, shuffle=False, num_workers=num_workers,
@@ -143,6 +171,9 @@ def main(config_path, run_name):
             best_f1 = f1
             torch.save(model.state_dict(), run_dir / "kilocnet_epoch_best.pth")
             best_epoch = i + 1
+        
+        if i == epochs-1:
+            torch.save(model.state_dict(), run_dir / "kilocnet_epoch_last.pth")
 
         history.append({
             "epoch": i+1,
