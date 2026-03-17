@@ -1,5 +1,4 @@
 base_config: configs/train_mse.yaml
 epochs: 20
 grid:
-  sigma: [2.0, 3.0, 4.0]
-  q: [1.5, 2., 3.]
+  merge_radius: [1.5, 3.0, 5.0, 8.0]

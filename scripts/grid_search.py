@@ -39,6 +39,7 @@ def main(grid_config_path):
         full_run_name = f"{gridrun_name}/{run_name}"
 
         temp_config_path = grid_runs_dir / f'run_{i:03d}.yaml'
+        temp_config_path.parent.mkdir(parents=True, exist_ok=True)
         with open(temp_config_path, 'w') as f:
             yaml.dump(run_cfg, f)
         
