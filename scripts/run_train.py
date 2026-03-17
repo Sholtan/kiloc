@@ -17,13 +17,12 @@ from kiloc.target_generation.heatmaps import LocHeatmap
 from kiloc.model.kiloc_net import KiLocNet
 from kiloc.training.train import train_one_epoch, val_one_epoch
 
-from kiloc.losses.losses import sigmoid_weighted_mse_loss, sigmoid_focal_loss
-from kiloc.losses.losses import SigmoidWeightedMSE
+from kiloc.losses.losses import sigmoid_focal_loss, SigmoidWeightedMSE, SigmoidSumHuber
 
 import albumentations as A
 
 
-def main(config_path, run_name):
+def main(config_path, run_suffix):
     # config parameters:
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
@@ -41,17 +40,23 @@ def main(config_path, run_name):
 
     # Loss function
     if cfg['loss'] == 'sigmoid_weighted_mse_loss':
-        #criterion = sigmoid_weighted_mse_loss
-        criterion = SigmoidWeightedMSE(alpha_pos = cfg['alpha_pos'], alpha_neg = cfg['alpha_neg'], q = cfg['q'])
-        #criterion = SigmoidAssymetricWeightedMSE(alpha_pos = cfg['alpha_pos'], alpha_neg = cfg['alpha_neg'], q = cfg['q'], fp_weight = cfg['fp_weight'])
+        detection_loss = SigmoidWeightedMSE(alpha_pos = cfg['alpha_pos'], alpha_neg = cfg['alpha_neg'], q = cfg['q'])
     elif cfg['loss'] == 'sigmoid_focal_loss':
-        criterion = sigmoid_focal_loss
+        detection_loss = sigmoid_focal_loss
     else:
         raise ValueError(f"must choose one of losses: sigmoid_weighted_mse_loss or sigmoid_focal_loss, \
                          got {cfg['loss']} instead")
 
 
-
+    if cfg.get('count_loss', False):
+        print("Building composite loss with addition of count(Huber) loss")
+        sum_huber = SigmoidSumHuber()
+        def criterion(pred, target, pos_pts_tuple, neg_pts_tuple):
+            det = detection_loss(pred, target, pos_pts_tuple, neg_pts_tuple)
+            cnt = sum_huber(pred, target, pos_pts_tuple, neg_pts_tuple)
+            return det + cfg['lambda_count'] * cnt
+    else:
+        criterion = detection_loss
     
 
     # evaluation settings:
@@ -67,8 +72,8 @@ def main(config_path, run_name):
     # create run's save directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    if run_name:
-        run_dir = checkpoint_dir / run_name
+    if run_suffix:
+        run_dir = checkpoint_dir / ('run_' + timestamp  + '_' + run_suffix)
     else:
         run_dir = checkpoint_dir / ('run_' + timestamp)
     run_dir.mkdir(parents = True)
@@ -85,10 +90,10 @@ def main(config_path, run_name):
         A.VerticalFlip(p=0.5),
         A.RandomRotate90(p=0.75),
         A.ShiftScaleRotate(shift_limit=0.08, scale_limit=0.10, rotate_limit=0, border_mode=0, p=0.5),
-        # A.OneOf([
-        #     A.RandomBrightnessContrast(brightness_limit=0.12, contrast_limit=0.12, p=1.0),
-        #     A.HueSaturationValue(hue_shift_limit=6, sat_shift_limit=10, val_shift_limit=8, p=1.0),
-        # ], p=0.5),
+        A.OneOf([
+            A.RandomBrightnessContrast(brightness_limit=0.12, contrast_limit=0.12, p=1.0),
+            A.HueSaturationValue(hue_shift_limit=6, sat_shift_limit=10, val_shift_limit=8, p=1.0),
+        ], p=0.5),
         A.OneOf([
             A.GaussianBlur(blur_limit=(3, 3), p=1.0),
             A.GaussNoise(std_range=(0.005, 0.015), mean_range=(0.0, 0.0), p=1.0),
@@ -195,6 +200,9 @@ def main(config_path, run_name):
         
         if scheduler is not None:
             scheduler.step(f1)
+        
+
+
     
     best_path = run_dir / "kilocnet_epoch_best.pth"
     best_path.rename(run_dir / f"kilocnet_best_f1_epoch_{best_epoch}.pth")
@@ -207,6 +215,6 @@ def main(config_path, run_name):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default='configs/train_1.yaml')
-    parser.add_argument('--run_name', default=None)
+    parser.add_argument('--run_suffix', default=None)
     args = parser.parse_args()
-    main(args.config, args.run_name)
+    main(args.config, args.run_suffix)

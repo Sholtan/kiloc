@@ -3,60 +3,12 @@ Loss functions for project: Ki-67 index assesment using CNN backbone + FPN > loc
 
 """
 
-import torch
-from kiloc.utils.debug import print_info
+from typing import Any
 from dataclasses import dataclass
+import torch
+import torch.nn.functional as F
 
-
-
-def sigmoid_weighted_mse_loss(
-        pred_logits: torch.Tensor,
-        target: torch.Tensor,
-        pos_pts_tuple: tuple,
-        neg_pts_tuple: tuple,
-        alpha_pos: float = 100.0,
-        alpha_neg: float = 100.0,
-        q: float = 2.,
-) -> torch.Tensor:
-    """
-    Weighted MSE for localization logits.
-
-    Parameters
-    ----------
-    pred_logits: torch.Tensor
-    Raw logits from localization head, shape (B, 2, 160, 160)
-
-    target : torch.Tensor
-    The ground truth heatmaps, shape (B, 2, 160, 160)
-
-    alpha_pos: float
-    Weighting factor for positive peaks; by default 100
-    alpha_neg: float
-    Weighting factor for negative peaks; by default 100
-
-    Returns
-    ----------
-
-    total_loss: torch.Tensor (scalar)
-    The scalar loss averaged over the batch, channels and pixels.
-    """
-
-    pred = torch.sigmoid(pred_logits)
-
-    alpha = torch.tensor(
-        [alpha_pos, alpha_neg],
-        dtype=target.dtype,
-        device=target.device,
-    ).view(1, 2, 1, 1)
-    w = 1.0 + alpha * torch.pow(target, q)   # shape: (B, 2, H, W)
-    loss = w * (pred - target).pow(2)        # shape: (B, 2, H, W)
-
-    # normalize per image, per channel
-    loss = loss.sum(dim=(2, 3)) / (w.sum(dim=(2, 3)) + 1e-6)  # (B, 2)
-
-    total_loss = loss.mean()
-    return total_loss
-
+from kiloc.utils.debug import print_info
 
 def sigmoid_focal_loss(
         pred_logits: torch.Tensor,
@@ -138,6 +90,37 @@ class SigmoidWeightedMSE:
         total_loss = loss.mean()
         return total_loss
     
+
+@dataclass
+class SigmoidSumHuber:
+    """
+    
+    """
+    m_sigma: float = 56.548644
+    delta: float = 1.0
+    weight: float = 1e-3
+
+    def __call__(self, 
+            pred_logits: torch.Tensor,
+            target: torch.Tensor,
+            pos_pts_tuple: tuple,
+            neg_pts_tuple: tuple,) -> torch.Tensor:
+        pred = torch.sigmoid(pred_logits)
+        counts_hat = pred.sum(dim=(-2, -1)) / self.m_sigma  # [B, 2]
+
+        device = pred_logits.device
+        dtype = pred.dtype
+
+        counts_gt = torch.tensor(
+            [[len(pos_pts_tuple[b]), len(neg_pts_tuple[b])]
+             for b in range(len(pos_pts_tuple))],
+            device=device,
+            dtype=dtype,
+        )  # [B, 2]
+
+        count_loss = F.huber_loss(counts_hat, counts_gt, delta=self.delta)
+        return self.weight * count_loss
+
 
 
 # @dataclass
