@@ -137,4 +137,43 @@ class SigmoidWeightedMSE:
 
         total_loss = loss.mean()
         return total_loss
-        
+    
+
+
+# @dataclass
+# class SigmoidAssymetricWeightedMSE:
+#     """
+#     Generates weighted MSE loss with certain alpha_pos and alpha_neg coefficients
+#     """
+#     alpha_pos: float = 100.0,
+#     alpha_neg: float = 100.0,
+#     q: float = 2.,
+#     fp_weight: float = 1.5,
+
+#     def __call__(self, 
+#             pred_logits: torch.Tensor,
+#             target: torch.Tensor,
+#             pos_pts_tuple: tuple,
+#             neg_pts_tuple: tuple,)-> torch.Tensor: 
+#         """
+#         """
+#         pred = torch.sigmoid(pred_logits)
+
+#         alpha = torch.tensor(
+#             [self.alpha_pos, self.alpha_neg],
+#             dtype=target.dtype,
+#             device=target.device,
+#         ).view(1, 2, 1, 1)
+#         residual = pred - target
+#         asymmetry = torch.where(residual > 0, self.fp_weight, 1.0)
+#         w = 1.0 + alpha * torch.pow(target, self.q)   # shape: (B, 2, H, W)
+#         loss = asymmetry * w * (pred - target).pow(2)        # shape: (B, 2, H, W)
+
+#         # normalize per image, per channel
+#         loss = loss.sum(dim=(2, 3)) / (w.sum(dim=(2, 3)) + 1e-6)  # (B, 2)
+
+#         total_loss = loss.mean()
+#         return total_loss
+    
+
+
