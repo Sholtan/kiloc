@@ -10,6 +10,8 @@ from datetime import datetime
 import argparse
 import yaml
 import shutil
+import random
+import os
 
 from kiloc.utils.config import get_paths
 from kiloc.datasets.bcdata import BCDataDataset, collate_fn, AlbumentationsJointTransform
@@ -21,6 +23,22 @@ from kiloc.losses.losses import sigmoid_focal_loss, SigmoidWeightedMSE, SigmoidS
 
 import albumentations as A
 
+def set_seed(seed: int):
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    # This disables cuDNN's non-deterministic algorithms but can slow down training slightly. Whether you need it depends on how strict reproducibility needs to be.
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+# for the dataloader
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 def main(config_path, run_suffix):
     # config parameters:
@@ -36,6 +54,11 @@ def main(config_path, run_suffix):
     sigma = cfg['sigma']
     out_hw = cfg['out_hw']
     in_hw = cfg['in_hw']
+
+    # SEED
+    set_seed(cfg['seed'])
+
+    
 
 
     # Loss function
@@ -117,11 +140,14 @@ def main(config_path, run_suffix):
     dataset_val = BCDataDataset(
         root=root_dir, split='validation', target_transform=heatmap_gen)
     
+    g = torch.Generator()
+    g.manual_seed(cfg["seed"])
+
     # build dataloaders
     dataloader_train = DataLoader(dataset=dataset_train, batch_size=batch_size, shuffle=True, num_workers=num_workers,
-                                  collate_fn=collate_fn, pin_memory=True, drop_last=True, persistent_workers=True)
+                                  worker_init_fn=seed_worker, collate_fn=collate_fn, pin_memory=True, drop_last=False, generator=g, persistent_workers=True)
     dataloader_val = DataLoader(dataset=dataset_val, batch_size=batch_size, shuffle=False, num_workers=num_workers,
-                                collate_fn=collate_fn, pin_memory=True, drop_last=True, persistent_workers=True)
+                                worker_init_fn=seed_worker, collate_fn=collate_fn, pin_memory=True, drop_last=False, generator=g, persistent_workers=True)
 
     # build model
     model = KiLocNet(pretrained=is_pretrained)
@@ -150,7 +176,7 @@ def main(config_path, run_suffix):
         raise ValueError(f"scheduler must be ReduceLROnPlateau, it's only one implemented yet")
     
     #best_val_loss = np.inf
-    best_f1 = -1.
+    best_f1_macro = -1.
     history = []
     best_epoch = -1
     for i in range(epochs):
@@ -164,16 +190,16 @@ def main(config_path, run_suffix):
                                                               merge_radius=merge_radius, matching_radius=matching_radius)
         total_loss_val, precision, recall, f1, \
             precision_pos, recall_pos, f1_pos, \
-                precision_neg, recall_neg, f1_neg = val_result
+                precision_neg, recall_neg, f1_neg, f1_macro = val_result
         
-        print(f"Epoch {i+1}/{epochs} | train={total_loss_train:.4f} | val={total_loss_val:.4f} | P={precision:.3f} R={recall:.3f} F1={f1:.3f}")
+        print(f"Epoch {i+1}/{epochs} | train={total_loss_train:.4f} | val={total_loss_val:.4f} | P={precision:.3f},  R={recall:.3f},  F1_micro={f1:.3f},  F1_macro:{f1_macro:.3f}")
 
 
         # save weights if val_los is new minimum
         # trying to save best f1
-        if f1 > best_f1:  #total_loss_val < best_val_loss:
+        if f1_macro > best_f1_macro:  #total_loss_val < best_val_loss:
             #best_val_loss = total_loss_val
-            best_f1 = f1
+            best_f1_macro = f1_macro
             torch.save(model.state_dict(), run_dir / "kilocnet_epoch_best.pth")
             best_epoch = i + 1
         
@@ -194,12 +220,13 @@ def main(config_path, run_suffix):
             "recall_neg": recall_neg,
             "f1_neg": f1_neg,
             "lr": optimizer.param_groups[0]['lr'],
+            "f1_macro": f1_macro,
         })
         with open(run_dir / 'history.json', 'w') as f:
             json.dump(history, f, indent=2)
         
         if scheduler is not None:
-            scheduler.step(f1)
+            scheduler.step(f1_macro)
         
 
 
