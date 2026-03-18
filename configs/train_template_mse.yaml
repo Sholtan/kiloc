@@ -1,20 +1,29 @@
+seed: 41
 loss: "sigmoid_weighted_mse_loss"
-epochs: 30
-batch_size: 32
+epochs: 40
+batch_size: 8
 num_workers: 8
-lr: 3.0e-4
+lr: 5.0e-4
 weight_decay: 1.0e-2
 alpha_pos: 100.
 alpha_neg: 100.
 q: 2.
-is_pretrained: 1   # 1 - True, 0 - False
-sigma: 3.0
+is_pretrained: true
+input_normalization: imagenet
+sigma: 2.8
 out_hw: [160, 160]
 in_hw: [640, 640]
 kernel_size: 3
-threshold: 0.5
+
+threshold: 0.725
+thr_pos: 0.875
+thr_neg: 0.863
+
 merge_radius: 1.5
 matching_radius: 10
+augmentation: true
+count_loss: false
+lambda_count: 0.25
 scheduler:
   name: ReduceLROnPlateau
   mode: max         # maximizing F1
