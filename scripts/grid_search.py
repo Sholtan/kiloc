@@ -64,16 +64,16 @@ def main(grid_config_path):
         with open(run_dir / 'history.json') as f:
             history = json.load(f)
 
-        best = max(history, key=lambda x: x['f1'])
+        best = max(history, key=lambda x: x['f1_macro'])
         results.append({
             'params': dict(zip(param_names, combo)),
             'run_dir': str(run_dir),
             'best_epoch': best['epoch'],
-            'f1': best['f1'],
+            'f1_macro': best['f1_macro'],
             'precision': best['precision'],
             'recall': best['recall'],
         })
-        print(f"Best F1 this run: {best['f1']:.4f} at epoch {best['epoch']}")
+        print(f"Best F1-macro this run: {best['f1_macro']:.4f} at epoch {best['epoch']}")
 
     results.sort(key=lambda x: x['f1'], reverse=True)
 

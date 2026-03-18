@@ -13,6 +13,9 @@ from kiloc.evaluation.decode import heatmaps_to_points_batch
 from kiloc.evaluation.metrics import match_points
 from torch.utils.data import DataLoader
 
+# IMAGENET statistics, used for normalization when using backbones trained on IMAGENET
+IMAGENET_MEAN = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32).view(3, 1, 1)
+IMAGENET_STD  = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32).view(3, 1, 1)
 
 def main(run_dir, n_images, split, checkpoint):
     with open(run_dir / 'config.yaml') as f:
@@ -40,7 +43,7 @@ def main(run_dir, n_images, split, checkpoint):
         out_hw=cfg['out_hw'], in_hw=cfg['in_hw'],
         sigma=cfg['sigma'], dtype=torch.float32
     )
-    dataset = BCDataDataset(root=root_dir, split=split, target_transform=heatmap_gen)
+    dataset = BCDataDataset(root=root_dir, split=split, target_transform=heatmap_gen, input_normalization=cfg['input_normalization'])
     loader = DataLoader(
         dataset, batch_size=1, shuffle=False,
         collate_fn=collate_fn, num_workers=0
@@ -87,7 +90,9 @@ def main(run_dir, n_images, split, checkpoint):
             img_np = img_batch[0].cpu().permute(1, 2, 0).numpy()
             img_np = (img_np - img_np.min()) / (img_np.max() - img_np.min())
 
-
+            if cfg['input_normalization'] == 'imagenet':
+                img_np = img_np * np.array(IMAGENET_STD).reshape(1,1,3) + np.array(IMAGENET_MEAN).reshape(1,1,3)
+            img_np = np.clip(img_np, 0.0, 1.0)
 
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
 

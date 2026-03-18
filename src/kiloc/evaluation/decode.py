@@ -6,12 +6,19 @@ import torch
 import torch.nn.functional as F
 from numpy.typing import NDArray
 
+def _as_pair(x, name: str) -> tuple[float, float]:
+    if isinstance(x, (tuple, list)):
+        if len(x) != 2:
+            raise ValueError(f"{name} must be a scalar or length-2 tuple/list, got {x}")
+        return float(x[0]), float(x[1])
+    return float(x), float(x)
+
 
 @torch.no_grad()
 def heatmaps_to_points_batch(
     heatmaps: torch.Tensor,
     kernel_size: int,
-    threshold: float,
+    threshold: float | tuple[float, float],
     output_hw: tuple = (640, 640),
     merge_radius: float = 1.5,
     refine: bool = True,
@@ -68,7 +75,13 @@ def heatmaps_to_points_batch(
     return out_pos, out_neg
 
 
-def heatmaps_to_points(heatmap2d, kernel_size, threshold, merge_radius=1.5, refine=True):
+def heatmaps_to_points(
+        heatmap2d: torch.Tensor, 
+        kernel_size: int, 
+        threshold: float | tuple[float, float], 
+        merge_radius:float =1.5, 
+        refine: bool = True
+):
     """
     Recover points from a single sample heatmap with shape (2, H, W).
     Returns (pos_pts, neg_pts) as np arrays of shape (N, 2) in (x,y) order. 
@@ -77,15 +90,17 @@ def heatmaps_to_points(heatmap2d, kernel_size, threshold, merge_radius=1.5, refi
         raise ValueError(
             f"Expected heatmap2d with shape (2, H, W), got {heatmap2d.shape}")
 
+    thr_pos, thr_neg = _as_pair(threshold, "threshold")
+
     pos_heatmap = heatmap2d[0]
     neg_heatmap = heatmap2d[1]
 
     pos_pts = _channel_to_points(
-        pos_heatmap, kernel_size=kernel_size, threshold=threshold,
+        pos_heatmap, kernel_size=kernel_size, threshold=thr_pos,
         merge_radius=merge_radius, refine=refine
     )
     neg_pts = _channel_to_points(
-        neg_heatmap, kernel_size=kernel_size, threshold=threshold,
+        neg_heatmap, kernel_size=kernel_size, threshold=thr_neg,
         merge_radius=merge_radius, refine=refine
     )
 

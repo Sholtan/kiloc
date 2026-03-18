@@ -32,7 +32,10 @@ assert img_batch.shape == (3, 640, 640), img_batch.shape
 assert img_batch.dtype == torch.float32, img_batch.dtype
 assert heatmaps_batch.shape == (2, 160, 160), heatmaps_batch.shape
 assert heatmaps_batch.dtype == torch.float32, heatmaps_batch.dtype
-assert img_batch.min() >= 0.0 and img_batch.max() <= 1.0
+
+# if imagenet normalization is used, the image pixels are not in (0, 1) range
+#assert img_batch.min() >= 0.0 and img_batch.max() <= 1.0
+
 assert heatmaps_batch.min() >= 0.0 and heatmaps_batch.max() <= 1.0
 
 save_image_heatmaps_batchs(img_batch, heatmaps_batch,

@@ -38,7 +38,7 @@ def main(run_dir, split, checkpoint, thresholds):
     root_dir, _ = get_paths(device='h200')
     heatmap_gen = LocHeatmap(out_hw=cfg['out_hw'], in_hw=cfg['in_hw'],
                             sigma=cfg['sigma'], dtype=torch.float32)
-    dataset = BCDataDataset(root=root_dir, split=split, target_transform=heatmap_gen)
+    dataset = BCDataDataset(root=root_dir, split=split, target_transform=heatmap_gen, input_normalization=cfg['input_normalization'])
     loader = DataLoader(dataset, batch_size=1, shuffle=False,
                         collate_fn=collate_fn, num_workers=4)
 

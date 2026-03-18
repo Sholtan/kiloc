@@ -326,9 +326,9 @@ def main(config_path, run_name):
     else:
         print("No augmentations will be applied")
     dataset_train = BCDataDataset(
-        root=root_dir, split='train', target_transform=heatmap_gen, joint_transform=joint_tf)
+        root=root_dir, split='train', target_transform=heatmap_gen, joint_transform=joint_tf, input_normalization=cfg['input_normalization'])
     dataset_val = BCDataDataset(
-        root=root_dir, split='validation', target_transform=heatmap_gen)
+        root=root_dir, split='validation', target_transform=heatmap_gen, input_normalization=cfg['input_normalization'])
 
     # build dataloaders
     dataloader_train = DataLoader(

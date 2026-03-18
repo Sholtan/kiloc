@@ -85,7 +85,13 @@ def main(config_path, run_suffix):
 
     # evaluation settings:
     kernel_size = cfg['kernel_size']
-    threshold = cfg['threshold']
+
+    base_threshold = cfg.get('threshold', 0.5)
+    thr_pos = cfg.get('thr_pos', base_threshold)
+    thr_neg = cfg.get('thr_neg', base_threshold)
+    threshold = (thr_pos, thr_neg)
+    print(f"Validation thresholds: thr_pos={thr_pos:.3f}, thr_neg={thr_neg:.3f}")
+    
     merge_radius = cfg['merge_radius']
     matching_radius = cfg['matching_radius']
 

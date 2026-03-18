@@ -71,7 +71,7 @@ class BCDataDataset(Dataset):
             split: str,
             target_transform: Callable,
             joint_transform: Callable | None = None,
-            input_normalization: bool = False,
+            input_normalization: str | None = None,
     ) -> None:
         self.root = Path(root)
         self.split = split

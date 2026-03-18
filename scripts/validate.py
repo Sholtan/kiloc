@@ -34,7 +34,7 @@ def main(run_dir, split, checkpoint):
         out_hw=cfg['out_hw'], in_hw=cfg['in_hw'],
         sigma=cfg['sigma'], dtype=torch.float32
     )
-    dataset = BCDataDataset(root=root_dir, split=split, target_transform=heatmap_gen)
+    dataset = BCDataDataset(root=root_dir, split=split, target_transform=heatmap_gen, input_normalization=cfg['input_normalization'])
     loader = DataLoader(dataset, batch_size=1, shuffle=False, collate_fn=collate_fn, num_workers=4)
 
 
@@ -48,7 +48,7 @@ def main(run_dir, split, checkpoint):
 
     val_loss, precision, recall, f1, \
         precision_pos, recall_pos, f1_pos, \
-        precision_neg, recall_neg, f1_neg = val_one_epoch(
+        precision_neg, recall_neg, f1_neg, f1_macro = val_one_epoch(
             model=model, criterion=criterion, device=device, val_loader=loader,
             kernel_size=cfg['kernel_size'], threshold=cfg['threshold'],
             merge_radius=cfg['merge_radius'], matching_radius=cfg['matching_radius']
@@ -60,6 +60,7 @@ def main(run_dir, split, checkpoint):
         'precision': precision, 'recall': recall, 'f1': f1,
         'precision_pos': precision_pos, 'recall_pos': recall_pos, 'f1_pos': f1_pos,
         'precision_neg': precision_neg, 'recall_neg': recall_neg, 'f1_neg': f1_neg,
+        'f1_macro': f1_macro
     }
 
     for k, v in results.items():

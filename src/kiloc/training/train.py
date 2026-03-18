@@ -47,7 +47,7 @@ def val_one_epoch(
     device: torch.device | str,
     val_loader: DataLoader,
     kernel_size: int = 3,
-    threshold: float = 0.5,
+    threshold: float | tuple[float, float] = 0.5,
     merge_radius: float = 1.5,
     matching_radius: float = 6.0,
 ) -> tuple[float, float, float, float, float, float, float, float, float, float, float]:

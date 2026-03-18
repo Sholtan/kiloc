@@ -47,7 +47,7 @@ def main(run_dir, split, checkpoint, thresholds):
         sigma=cfg['sigma'],
         dtype=torch.float32
     )
-    dataset = BCDataDataset(root=root_dir, split=split, target_transform=heatmap_gen)
+    dataset = BCDataDataset(root=root_dir, split=split, target_transform=heatmap_gen, input_normalization=cfg['input_normalization'])
     loader = DataLoader(
         dataset,
         batch_size=1,
@@ -190,7 +190,9 @@ if __name__ == '__main__':
         '--thresholds',
         nargs='+',
         type=float,
-        default=[round(0.5 + i * 0.025, 3) for i in range(20)]
+        #default=[round(0.5 + i * 0.025, 3) for i in range(20)]
+        #default=[round(0.025 + i * 0.025, 3) for i in range(20)]
+        default=[round(0.025 + i * 0.025, 3) for i in range(39)]
     )
     args = parser.parse_args()
     main(Path(args.run_dir), args.split, args.checkpoint, args.thresholds)
