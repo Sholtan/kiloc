@@ -51,6 +51,7 @@ def main(config_path, run_suffix):
     lr = cfg['lr']
     weight_decay = cfg['weight_decay']
     is_pretrained = cfg['is_pretrained']
+    input_normalization = cfg['input_normalization']
     sigma = cfg['sigma']
     out_hw = cfg['out_hw']
     in_hw = cfg['in_hw']
@@ -135,10 +136,22 @@ def main(config_path, run_suffix):
         print('Augmentations will be applied to the train set')
     else:
         print("No augmentations will be applied")
+
+    print(f"Using {input_normalization} input normalization")
     dataset_train = BCDataDataset(
-        root=root_dir, split='train', target_transform=heatmap_gen, joint_transform=joint_tf)
+        root=root_dir,
+        split='train',
+        target_transform=heatmap_gen,
+        joint_transform=joint_tf,
+        input_normalization=input_normalization,
+    )
+
     dataset_val = BCDataDataset(
-        root=root_dir, split='validation', target_transform=heatmap_gen)
+        root=root_dir,
+        split='validation',
+        target_transform=heatmap_gen,
+        input_normalization=input_normalization,
+    )
     
     g = torch.Generator()
     g.manual_seed(cfg["seed"])

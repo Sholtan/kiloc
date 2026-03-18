@@ -13,6 +13,9 @@ from numpy.typing import NDArray
 from typing import Any
 from collections.abc import Callable
 
+# IMAGENET statistics, used for normalization when using backbones trained on IMAGENET
+IMAGENET_MEAN = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32).view(3, 1, 1)
+IMAGENET_STD  = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32).view(3, 1, 1)
 
 class AlbumentationsJointTransform:
     def __init__(self, transform):
@@ -68,11 +71,13 @@ class BCDataDataset(Dataset):
             split: str,
             target_transform: Callable,
             joint_transform: Callable | None = None,
+            input_normalization: bool = False,
     ) -> None:
         self.root = Path(root)
         self.split = split
         self.target_transform = target_transform
         self.joint_transform = joint_transform
+        self.input_normalization = input_normalization
 
         if split not in self.SUPPORTED_SPLITS:
             raise ValueError(
@@ -155,9 +160,15 @@ class BCDataDataset(Dataset):
         if self.joint_transform is not None:
             img_scaled, pos_pts, neg_pts = self.joint_transform(img_scaled, pos_pts, neg_pts)
 
-        img_tensor: torch.Tensor = torch.from_numpy(
-            img_scaled).permute(2, 0, 1).contiguous()
-
+        img_tensor: torch.Tensor = (
+            torch.from_numpy(img_scaled)
+            .permute(2, 0, 1)
+            .contiguous()
+            .float()
+        )
+        if self.input_normalization == 'imagenet':
+            img_tensor = (img_tensor - IMAGENET_MEAN) / IMAGENET_STD
+        
 
 
 
