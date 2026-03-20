@@ -44,6 +44,7 @@ def main(run_dir):
 
     figures_dir = Path(run_dir) / "figures"
     figures_dir.mkdir(exist_ok=True)
+    print(f"created\n{figures_dir}")
 
     # Plot losses
     fig, ax = plt.subplots()
