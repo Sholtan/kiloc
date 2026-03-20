@@ -32,8 +32,8 @@ def run_one(i, combo, param_names, base_cfg, gridrun_name, grid_runs_dir, gpu_id
     cmd = [
         "python", "scripts/run_train.py",
         "--config", str(temp_config_path),
-        "--run_suffix", full_run_name,   # change if your script expects --run_suffix
         "--out_dir", gridrun_name,
+        "--run_name", run_name,
     ]
 
     run_dir = None
@@ -159,7 +159,7 @@ def main(grid_config_path, gpus):
     output_path = Path("checkpoints") / gridrun_name / "grid_results.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
-        json.dump(results, f, indent=2)
+        json.dump(ok_results, f, indent=2)
 
     print(f"\nSaved to {output_path}")
 

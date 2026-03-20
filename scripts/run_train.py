@@ -40,7 +40,7 @@ def seed_worker(worker_id):
     np.random.seed(worker_seed)
     random.seed(worker_seed)
 
-def main(config_path, run_suffix, out_dir):
+def main(config_path, run_suffix, out_dir, run_name):
     # config parameters:
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
@@ -82,6 +82,21 @@ def main(config_path, run_suffix, out_dir):
     else:
         criterion = detection_loss
     
+    _sup_total, _n = 0., 0
+    _det_total = 0.
+    if cfg.get('suppression_loss', False):
+        from kiloc.losses.losses import SigmoidOppositeSuppression
+        suppression = SigmoidOppositeSuppression(weight=cfg.get('lambda_suppression', 1.0))
+        
+        _prev_criterion = criterion
+        def criterion(pred, target, pos_pts_tuple, neg_pts_tuple):
+            nonlocal _sup_total, _det_total, _n
+            base = _prev_criterion(pred, target, pos_pts_tuple, neg_pts_tuple)
+            sup = suppression(pred, target, pos_pts_tuple, neg_pts_tuple)
+            _det_total += base.item()
+            _sup_total += sup.item()
+            _n += 1
+            return base + sup
 
     # evaluation settings:
     kernel_size = cfg['kernel_size']
@@ -105,10 +120,16 @@ def main(config_path, run_suffix, out_dir):
     # create run's save directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    if run_suffix:
-        run_dir = checkpoint_dir / ('run_' + timestamp  + '_' + run_suffix)
+
+    if run_name:
+        # fullly explicit - used by grid search
+        run_dir = checkpoint_dir / run_name
+    elif run_suffix:
+        # user with label
+        run_dir = checkpoint_dir / f"run_{run_suffix}_{timestamp}"
     else:
-        run_dir = checkpoint_dir / ('run_' + timestamp)
+        # plain user run
+        run_dir = checkpoint_dir / f"run_{timestamp}"
     run_dir.mkdir(parents = True)
 
 
@@ -266,6 +287,11 @@ def main(config_path, run_suffix, out_dir):
         if scheduler is not None:
             scheduler.step(f1_macro)
         
+        if i == 0 and cfg.get('suppression_loss', False):
+            print(f"[epoch 1 avg] suppression={_sup_total/_n:.6f},  detection={_det_total/_n:.6f},   ratio: {_sup_total/_det_total:.3f}")
+        _sup_total, _det_total, _n = 0., 0., 0
+
+        
 
 
     
@@ -273,7 +299,8 @@ def main(config_path, run_suffix, out_dir):
     best_path.rename(run_dir / f"kilocnet_best_f1_epoch_{best_epoch}.pth")
     
     best_path_ema = run_dir / "kilocnet_epoch_best_ema.pth"
-    best_path_ema.rename(run_dir / f"kilocnet_best_f1_epoch_{best_epoch}_ema.pth")
+    if best_path_ema.exists():
+        best_path_ema.rename(run_dir / f"kilocnet_best_f1_epoch_{best_epoch}_ema.pth")
 
     print(f"BEST EPOCH WAS: {best_epoch}")
 
@@ -286,5 +313,6 @@ if __name__ == '__main__':
     parser.add_argument('--config', default='configs/train_1.yaml')
     parser.add_argument('--run_suffix', default=None)
     parser.add_argument('--out_dir', default=None)
+    parser.add_argument('--run_name', default=None)
     args = parser.parse_args()
-    main(args.config, args.run_suffix, args.out_dir)
+    main(args.config, args.run_suffix, args.out_dir, args.run_name)

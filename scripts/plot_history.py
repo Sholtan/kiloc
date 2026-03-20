@@ -31,7 +31,7 @@ def main(run_dir):
         val_loss.append(dct['val_loss'])
         precision.append(dct['precision'])
         recall.append(dct['recall'])
-        f1.append(dct['f1'])
+        f1.append(dct['f1_macro'])
 
         precision_pos.append(dct['precision_pos'])
         recall_pos.append(dct['recall_pos'])

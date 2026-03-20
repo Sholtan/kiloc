@@ -157,6 +157,20 @@ class SigmoidSumHuber:
 
 #         total_loss = loss.mean()
 #         return total_loss
+
+
+
+@dataclass
+class SigmoidOppositeSuppression:
+    weight: float = 1.0
+
+    def __call__(self, pred_logits, target, pos_pts_tuple, neg_pts_tuple):
+        pred_pos = torch.sigmoid(pred_logits[:, 0:1])
+        pred_neg = torch.sigmoid(pred_logits[:, 1:2])
+        t_pos = target[:, 0:1]
+        t_neg = target[:, 1:2]
+        loss = (t_pos * pred_neg.pow(2)).mean() + (t_neg * pred_pos.pow(2)).mean()
+        return self.weight * loss
     
 
 
