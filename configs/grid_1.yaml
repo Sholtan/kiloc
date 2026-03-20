@@ -1,4 +1,0 @@
-base_config: configs/train_mse.yaml
-epochs: 50
-grid:
-  sigma: [2.0, 2.25, 2.5, 3.0]
