@@ -18,7 +18,7 @@ from kiloc.datasets.bcdata import BCDataDataset, collate_fn, AlbumentationsJoint
 from kiloc.target_generation.heatmaps import LocHeatmap
 from kiloc.model.kiloc_net import KiLocNet
 from kiloc.training.train import train_one_epoch, val_one_epoch
-
+from kiloc.training.ema import ModelEMA
 from kiloc.losses.losses import sigmoid_focal_loss, SigmoidWeightedMSE, SigmoidSumHuber
 
 import albumentations as A
@@ -174,7 +174,10 @@ def main(config_path, run_suffix):
     if torch.cuda.is_available():
         device = 'cuda'
     model = model.to(device)
-    
+    use_ema = cfg.get("ema", False)
+    ema = None
+    ema_start_epoch = cfg.get("ema_start_epoch", 5)
+
     # build optimizer
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -199,11 +202,20 @@ def main(config_path, run_suffix):
     history = []
     best_epoch = -1
     for i in range(epochs):
+        if use_ema and ema is None and i == ema_start_epoch:
+            ema = ModelEMA(
+                model=model,                     # important: copy CURRENT trained model
+                decay=cfg.get("ema_decay", 0.999),
+                device=cfg.get("ema_device", None),
+            )
+            print(f"EMA initialized at epoch {i+1}")
+            
         total_loss_train = train_one_epoch(model=model, criterion=criterion,
                                            optimizer=optimizer, device=device,
-                                           trainloader=dataloader_train)
+                                           trainloader=dataloader_train, ema=ema,)
 
-        val_result = val_one_epoch(model=model, criterion=criterion,
+        eval_model = ema.module if ema is not None else model
+        val_result = val_one_epoch(model=eval_model, criterion=criterion,
                                                               device=device, val_loader=dataloader_val,
                                                               kernel_size=kernel_size, threshold=threshold,
                                                               merge_radius=merge_radius, matching_radius=matching_radius)
@@ -217,13 +229,16 @@ def main(config_path, run_suffix):
         # save weights if val_los is new minimum
         # trying to save best f1
         if f1_macro > best_f1_macro:  #total_loss_val < best_val_loss:
-            #best_val_loss = total_loss_val
             best_f1_macro = f1_macro
             torch.save(model.state_dict(), run_dir / "kilocnet_epoch_best.pth")
             best_epoch = i + 1
+            if ema is not None:
+                torch.save(ema.module.state_dict(), run_dir / "kilocnet_epoch_best_ema.pth")
         
         if i == epochs-1:
             torch.save(model.state_dict(), run_dir / "kilocnet_epoch_last.pth")
+            if ema is not None:
+                torch.save(ema.module.state_dict(), run_dir / "kilocnet_epoch_last_ema.pth")
 
         history.append({
             "epoch": i+1,
@@ -252,6 +267,10 @@ def main(config_path, run_suffix):
     
     best_path = run_dir / "kilocnet_epoch_best.pth"
     best_path.rename(run_dir / f"kilocnet_best_f1_epoch_{best_epoch}.pth")
+    
+    best_path_ema = run_dir / "kilocnet_epoch_best_ema.pth"
+    best_path_ema.rename(run_dir / f"kilocnet_best_f1_epoch_{best_epoch}_ema.pth")
+
     print(f"BEST EPOCH WAS: {best_epoch}")
 
         

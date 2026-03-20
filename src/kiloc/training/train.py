@@ -9,14 +9,15 @@ from kiloc.model.kiloc_net import KiLocNet
 from kiloc.evaluation.decode import heatmaps_to_points_batch
 from kiloc.utils.debug import print_info
 from kiloc.evaluation.metrics import compute_metrics
-
+from kiloc.training.ema import ModelEMA
 
 def train_one_epoch(
         model: KiLocNet,
         criterion: Callable,
         optimizer: Optimizer,
         device: torch.device | str,
-        trainloader: DataLoader
+        trainloader: DataLoader,
+        ema: ModelEMA | None = None,
 ) -> float:
     model.train()
     total_loss = 0.0
@@ -34,6 +35,10 @@ def train_one_epoch(
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
+
+        if ema is not None:
+            ema.update(model)
+
         total_loss += loss.item()
 
     total_loss /= len(trainloader)
