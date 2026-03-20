@@ -10,11 +10,11 @@ from kiloc.target_generation.heatmaps import LocHeatmap
 from kiloc.model.kiloc_net import KiLocNet
 from kiloc.evaluation.decode import heatmaps_to_points_batch
 from kiloc.evaluation.metrics import compute_metrics
-
+from kiloc.evaluation.tta import tta_forward
 
 def safe_div(num, den):
     return num / den if den > 0 else 0.0
-
+    
 
 def safe_f1(precision, recall):
     return 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
@@ -23,6 +23,7 @@ def safe_f1(precision, recall):
 def main(run_dir, split, checkpoint, thresholds_pos, thresholds_neg):
     with open(run_dir / 'config.yaml') as f:
         cfg = yaml.safe_load(f)
+    use_tta = cfg.get('tta', False)
 
     if checkpoint is not None:
         ckpt_paths = [run_dir / checkpoint]
@@ -65,8 +66,14 @@ def main(run_dir, split, checkpoint, thresholds_pos, thresholds_neg):
     with torch.no_grad():
         for img_batch, _, pos_pts_tuple, neg_pts_tuple in loader:
             img_batch = img_batch.to(device)
-            logits = model(img_batch)
-            heatmap = torch.sigmoid(logits[0]).cpu()
+            
+            #logits = model(img_batch)
+            #heatmap = torch.sigmoid(logits[0]).cpu()
+            if use_tta:
+                heatmap = tta_forward(model, img_batch)[0].cpu()
+            else:
+                heatmap = torch.sigmoid(model(img_batch)[0]).cpu()
+
             gt_pos = pos_pts_tuple[0]
             gt_neg = neg_pts_tuple[0]
             cache.append((heatmap, gt_pos, gt_neg))
@@ -213,7 +220,7 @@ if __name__ == '__main__':
         nargs=3,
         type=float,
         metavar=('START', 'END', 'NUM'),
-        default=[0.70, 0.875, 8],
+        default=[0.85, 0.89, 3],
         help='Positive threshold sweep as: START END NUM (inclusive)'
     )
     parser.add_argument(
@@ -221,7 +228,7 @@ if __name__ == '__main__':
         nargs=3,
         type=float,
         metavar=('START', 'END', 'NUM'),
-        default=[0.55, 0.775, 10],
+        default=[0.85, 0.89, 3],
         help='Negative threshold sweep as: START END NUM (inclusive)'
     )
 

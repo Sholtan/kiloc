@@ -33,6 +33,7 @@ def run_one(i, combo, param_names, base_cfg, gridrun_name, grid_runs_dir, gpu_id
         "python", "scripts/run_train.py",
         "--config", str(temp_config_path),
         "--run_suffix", full_run_name,   # change if your script expects --run_suffix
+        "--out_dir", gridrun_name,
     ]
 
     run_dir = None
@@ -85,8 +86,8 @@ def run_one(i, combo, param_names, base_cfg, gridrun_name, grid_runs_dir, gpu_id
         "log_path": str(log_path),
         "best_epoch": best["epoch"],
         "f1_macro": best["f1_macro"],
-        "precision_macro": best["precision_macro"],
-        "recall_macro": best["recall_macro"],
+        "precision": best["precision"],
+        "recall": best["recall"],
     }
 
 
@@ -148,8 +149,8 @@ def main(grid_config_path, gpus):
     for r in ok_results:
         print(
             f"F1_macro={r['f1_macro']:.4f} "
-            f"P={r['precision_macro']:.3f} "
-            f"R={r['recall_macro']:.3f} "
+            f"P={r['precision']:.3f} "
+            f"R={r['recall']:.3f} "
             f"| epoch={r['best_epoch']} "
             f"| gpu={r['gpu_id']} "
             f"| {r['params']}"

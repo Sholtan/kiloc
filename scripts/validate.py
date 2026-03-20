@@ -51,7 +51,8 @@ def main(run_dir, split, checkpoint):
         precision_neg, recall_neg, f1_neg, f1_macro = val_one_epoch(
             model=model, criterion=criterion, device=device, val_loader=loader,
             kernel_size=cfg['kernel_size'], threshold=cfg['threshold'],
-            merge_radius=cfg['merge_radius'], matching_radius=cfg['matching_radius']
+            merge_radius=cfg['merge_radius'], matching_radius=cfg['matching_radius'],
+            tta=cfg.get('tta', False)
         )
 
     results = {

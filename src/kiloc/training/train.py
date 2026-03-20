@@ -10,6 +10,8 @@ from kiloc.evaluation.decode import heatmaps_to_points_batch
 from kiloc.utils.debug import print_info
 from kiloc.evaluation.metrics import compute_metrics
 from kiloc.training.ema import ModelEMA
+from kiloc.evaluation.tta import tta_forward
+
 
 def train_one_epoch(
         model: KiLocNet,
@@ -55,6 +57,7 @@ def val_one_epoch(
     threshold: float | tuple[float, float] = 0.5,
     merge_radius: float = 1.5,
     matching_radius: float = 6.0,
+    tta: bool = False
 ) -> tuple[float, float, float, float, float, float, float, float, float, float, float]:
     model.eval()
     total_loss = 0.
@@ -72,7 +75,8 @@ def val_one_epoch(
                              pos_pts_tuple, neg_pts_tuple)
             total_loss += loss.item()
 
-            pred_heatmaps = torch.sigmoid(logits)
+            #pred_heatmaps = torch.sigmoid(logits)
+            pred_heatmaps = tta_forward(model, img_batch) if tta else torch.sigmoid(logits)
 
             out_pos, out_neg = heatmaps_to_points_batch(
                 heatmaps=pred_heatmaps, kernel_size=kernel_size, threshold=threshold, merge_radius=merge_radius)

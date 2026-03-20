@@ -10,7 +10,7 @@ from kiloc.target_generation.heatmaps import LocHeatmap
 from kiloc.model.kiloc_net import KiLocNet
 from kiloc.evaluation.decode import heatmaps_to_points_batch
 from kiloc.evaluation.metrics import compute_metrics
-
+from kiloc.evaluation.tta import tta_forward
 
 def safe_div(num, den):
     return num / den if den > 0 else 0.0
@@ -23,7 +23,8 @@ def safe_f1(precision, recall):
 def main(run_dir, split, checkpoint, thresholds):
     with open(run_dir / 'config.yaml') as f:
         cfg = yaml.safe_load(f)
-
+    use_tta = cfg.get('tta', False)
+    print(f"use_tta: {use_tta}")
     if checkpoint is not None:
         print("checkpoint is not none")
         ckpt_paths = [run_dir / checkpoint]
@@ -62,8 +63,15 @@ def main(run_dir, split, checkpoint, thresholds):
     with torch.no_grad():
         for img_batch, _, pos_pts_tuple, neg_pts_tuple in loader:
             img_batch = img_batch.to(device)
-            logits = model(img_batch)
-            heatmap = torch.sigmoid(logits[0]).cpu()  # (2, H, W)
+            
+
+            #logits = model(img_batch)
+            #heatmap = torch.sigmoid(logits[0]).cpu()  # (2, H, W)
+            if use_tta:
+                heatmap = tta_forward(model, img_batch)[0].cpu()
+            else:
+                heatmap = torch.sigmoid(model(img_batch)[0]).cpu()
+
             gt_pos = pos_pts_tuple[0]
             gt_neg = neg_pts_tuple[0]
             cache.append((heatmap, gt_pos, gt_neg))

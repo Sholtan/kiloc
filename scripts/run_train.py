@@ -40,7 +40,7 @@ def seed_worker(worker_id):
     np.random.seed(worker_seed)
     random.seed(worker_seed)
 
-def main(config_path, run_suffix):
+def main(config_path, run_suffix, out_dir):
     # config parameters:
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
@@ -98,6 +98,9 @@ def main(config_path, run_suffix):
 
     # get the paths
     root_dir, checkpoint_dir = get_paths(device='h200')
+
+    if out_dir:
+        checkpoint_dir = checkpoint_dir / out_dir
     
     # create run's save directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -218,7 +221,8 @@ def main(config_path, run_suffix):
         val_result = val_one_epoch(model=eval_model, criterion=criterion,
                                                               device=device, val_loader=dataloader_val,
                                                               kernel_size=kernel_size, threshold=threshold,
-                                                              merge_radius=merge_radius, matching_radius=matching_radius)
+                                                              merge_radius=merge_radius, matching_radius=matching_radius,
+                                                              tta=False)
         total_loss_val, precision, recall, f1, \
             precision_pos, recall_pos, f1_pos, \
                 precision_neg, recall_neg, f1_neg, f1_macro = val_result
@@ -281,5 +285,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default='configs/train_1.yaml')
     parser.add_argument('--run_suffix', default=None)
+    parser.add_argument('--out_dir', default=None)
     args = parser.parse_args()
-    main(args.config, args.run_suffix)
+    main(args.config, args.run_suffix, args.out_dir)
