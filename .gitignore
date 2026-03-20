@@ -8,3 +8,4 @@ checkpoints/
 configs/train_mse.yaml
 configs/train_focal.yaml
 configs/grid_runs/
+configs/grid_1.yaml
