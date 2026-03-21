@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-from kiloc.model.backbone import build_resnet34_backbone
+from kiloc.model.backbone import build_backbone, BACKBONE_CHANNELS
 from kiloc.model.fpn import FPN
 from kiloc.model.head import HeatmapHead
 
@@ -15,10 +15,10 @@ class KiLocNet(nn.Module):
     Produces two localisation heatmaps (pos/neg)
     """
 
-    def __init__(self, pretrained=True) -> None:
+    def __init__(self, pretrained=True, backbone_name='resnet34') -> None:
         super().__init__()
-        self.fpn = FPN(in_channels=[64, 128, 256, 512], out_channels=256)
-        self.backbone = build_resnet34_backbone(pretrained=pretrained)
+        self.backbone = build_backbone(backbone_name, pretrained)
+        self.fpn = FPN(in_channels=BACKBONE_CHANNELS[backbone_name], out_channels=256)   # [64, 128, 256, 512]
 
         # Heads
         self.pos_head = HeatmapHead(in_channels=256)

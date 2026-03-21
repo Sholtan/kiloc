@@ -23,7 +23,7 @@ def main(run_dir, split, checkpoint):
         ckpt_paths = list(run_dir.glob('*.pth'))
         assert len(ckpt_paths) == 1, f"Expected 1 checkpoint, found {ckpt_paths}"
 
-    model = KiLocNet(pretrained=False)
+    model = KiLocNet(pretrained=False, backbone=cfg['backbone'])
     model.load_state_dict(torch.load(ckpt_paths[0], map_location='cpu'))
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = model.to(device)

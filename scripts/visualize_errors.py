@@ -31,7 +31,7 @@ def main(run_dir, n_images, split, checkpoint):
     
     ckpt_path = ckpt_paths[0]
 
-    model = KiLocNet(pretrained=False)
+    model = KiLocNet(pretrained=False, backbone_name=cfg['backbone'])
     model.load_state_dict(torch.load(ckpt_path, map_location='cpu'))
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = model.to(device)

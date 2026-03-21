@@ -193,7 +193,7 @@ def main(config_path, run_suffix, out_dir, run_name):
                                 worker_init_fn=seed_worker, collate_fn=collate_fn, pin_memory=True, drop_last=False, generator=g, persistent_workers=True)
 
     # build model
-    model = KiLocNet(pretrained=is_pretrained)
+    model = KiLocNet(pretrained=is_pretrained, backbone_name=cfg['backbone'])
     device = 'cpu'
     if torch.cuda.is_available():
         device = 'cuda'
