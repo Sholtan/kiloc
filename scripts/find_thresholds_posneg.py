@@ -212,7 +212,7 @@ def expand_sweep(spec, name: str):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_dir', required=True)
-    parser.add_argument('--split', default='test', choices=['train', 'test', 'validation'])
+    parser.add_argument('--split', default='validation', choices=['train', 'test', 'validation'])
     parser.add_argument('--checkpoint', default=None)
 
     parser.add_argument(
@@ -220,7 +220,7 @@ if __name__ == '__main__':
         nargs=3,
         type=float,
         metavar=('START', 'END', 'NUM'),
-        default=[0.85, 0.89, 3],
+        default=[0.86, 0.89, 5],
         help='Positive threshold sweep as: START END NUM (inclusive)'
     )
     parser.add_argument(
@@ -228,7 +228,7 @@ if __name__ == '__main__':
         nargs=3,
         type=float,
         metavar=('START', 'END', 'NUM'),
-        default=[0.85, 0.89, 3],
+        default=[0.86, 0.89, 5],
         help='Negative threshold sweep as: START END NUM (inclusive)'
     )
 

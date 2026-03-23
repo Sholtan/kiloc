@@ -9,21 +9,24 @@ from kiloc.target_generation.heatmaps import LocHeatmap
 from kiloc.model.kiloc_net import KiLocNet
 from kiloc.training.train import val_one_epoch
 
-from kiloc.losses.losses import sigmoid_weighted_mse_loss, SigmoidWeightedMSE
+from kiloc.losses.losses import SigmoidWeightedMSE
+
+
+# make validate use thresholds_pos, thresholds_neg!!!
+# measure f1 on valid and test sets
+
 
 def main(run_dir, split, checkpoint):
     with open(run_dir / 'config.yaml') as f:
         cfg = yaml.safe_load(f)
 
     if checkpoint is not None:
-        print("checkpoint is not none")
         ckpt_paths = [run_dir / checkpoint]
     else:
-        print("checkpoint is none")
         ckpt_paths = list(run_dir.glob('*.pth'))
         assert len(ckpt_paths) == 1, f"Expected 1 checkpoint, found {ckpt_paths}"
 
-    model = KiLocNet(pretrained=False, backbone=cfg['backbone'])
+    model = KiLocNet(pretrained=False, backbone_name=cfg['backbone'])
     model.load_state_dict(torch.load(ckpt_paths[0], map_location='cpu'))
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = model.to(device)
@@ -38,19 +41,22 @@ def main(run_dir, split, checkpoint):
     loader = DataLoader(dataset, batch_size=1, shuffle=False, collate_fn=collate_fn, num_workers=4)
 
 
-    # Loss function
     if cfg['loss'] == 'sigmoid_weighted_mse_loss':
-        criterion = sigmoid_weighted_mse_loss
-        #criterion = SigmoidWeightedMSE(alpha_pos = cfg['alpha_pos'], alpha_neg = cfg['alpha_neg'], q = cfg['q'])
+        criterion = SigmoidWeightedMSE(alpha_pos=cfg['alpha_pos'], alpha_neg=cfg['alpha_neg'], q=cfg['q'])
+    elif cfg['loss'] == 'sigmoid_focal_loss':
+        from kiloc.losses.losses import sigmoid_focal_loss
+        criterion = sigmoid_focal_loss
     else:
-        raise ValueError(f"must choose one of losses: sigmoid_weighted_mse_loss or sigmoid_focal_loss, \
-                         got {cfg['loss']} instead")
+        raise ValueError(f"Unknown loss: {cfg['loss']}")
+
+    # 
+    threshold=(cfg['thr_pos'], cfg['thr_neg'])
 
     val_loss, precision, recall, f1, \
         precision_pos, recall_pos, f1_pos, \
         precision_neg, recall_neg, f1_neg, f1_macro = val_one_epoch(
             model=model, criterion=criterion, device=device, val_loader=loader,
-            kernel_size=cfg['kernel_size'], threshold=cfg['threshold'],
+            kernel_size=cfg['kernel_size'], threshold = threshold,
             merge_radius=cfg['merge_radius'], matching_radius=cfg['matching_radius'],
             tta=cfg.get('tta', False)
         )
@@ -67,14 +73,15 @@ def main(run_dir, split, checkpoint):
     for k, v in results.items():
         print(f"{k}: {v}")
 
-    with open(run_dir / 'val_results.json', 'w') as f:
+    res_name = split + '_results.json'
+    with open(run_dir / res_name, 'w') as f:
         json.dump(results, f, indent=2)
-    print(f"\nSaved to {run_dir / 'val_results.json'}")
+    print(f"\nSaved to {run_dir / res_name}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_dir', required=True)
-    parser.add_argument('--split', default='test', choices=['train', 'test', 'validation'])
+    parser.add_argument('--split', default='validation', choices=['train', 'test', 'validation'])
     parser.add_argument('--checkpoint', default = None)
     args = parser.parse_args()
     main(Path(args.run_dir), args.split, args.checkpoint)

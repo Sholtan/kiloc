@@ -108,7 +108,7 @@ def main(run_dir, split, checkpoint, thresholds):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_dir', required=True)
-    parser.add_argument('--split', default='test', choices=['train', 'test', 'validation'])
+    parser.add_argument('--split', default='validation', choices=['train', 'test', 'validation'])
     parser.add_argument('--checkpoint', default=None)
     parser.add_argument('--thresholds', nargs='+', type=float,
                         default=[round(0.5 + i*0.025, 3) for i in range (20)])

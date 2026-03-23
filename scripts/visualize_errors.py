@@ -138,7 +138,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_dir', required=True)
     parser.add_argument('--n_images', type=int, default=None)
-    parser.add_argument('--split', default='test', choices=['train', 'test', 'validation'])
+    parser.add_argument('--split', default='validation', choices=['train', 'test', 'validation'])
     parser.add_argument('--checkpoint', default=None)
     args = parser.parse_args()
     main(Path(args.run_dir), args.n_images, args.split, args.checkpoint)
