@@ -1,0 +1,18 @@
+device: h200
+split: train
+
+
+crop_size: 64
+out_dir: context_radius/vis/train_crop64boxes
+
+
+num_images: 100
+random_sample: true
+seed: 42
+
+thickness: 1
+draw_centers: false
+center_radius: 1
+write_manifest: true
+
+# relative paths are resolved under checkpoint_dir returned by get_paths(device)

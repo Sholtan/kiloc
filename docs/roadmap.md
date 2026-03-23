@@ -57,3 +57,12 @@ Can i run grid search of parameters with my model, how to set it up (single run 
 what is the model first focuses on the easy task (positives) and then on the hard task (negatives)?
 
 Will warm up help (what is warm up in general)? Should try with/without.
+
+
+
+context_radius_study crops:
+64, 96, 128, 192
+extra small: 32
+
+fixed classifier input: 128×128
+
