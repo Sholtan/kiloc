@@ -1,0 +1,25 @@
+{
+  "split": "train",
+  "exclude_box_size": 192,
+  "num_images": 803,
+  "num_points_total": 93838,
+  "total_pixels": 328908800,
+  "kept_pixels": 17116265,
+  "kept_fraction": 0.05203954713282223,
+  "skipped_images_with_no_valid_pixels": 236,
+  "median_rgb_uint8": [
+    195.0,
+    188.0,
+    182.0
+  ],
+  "median_rgb_uint8_rounded": [
+    195,
+    188,
+    182
+  ],
+  "median_rgb_float_0_1": [
+    0.7647058823529411,
+    0.7372549019607844,
+    0.7137254901960784
+  ]
+}
