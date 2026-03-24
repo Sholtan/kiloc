@@ -1,0 +1,20 @@
+loss: "sigmoid_focal_loss"
+epochs: 30
+batch_size: 32
+num_workers: 8
+lr: 3.0e-4
+weight_decay: 1.0e-2
+is_pretrained: 1   # 1 - True, 0 - False
+sigma: 3.0
+out_hw: [160, 160]
+in_hw: [640, 640]
+kernel_size: 3
+threshold: 0.5
+merge_radius: 1.5
+matching_radius: 10
+scheduler:
+  name: ReduceLROnPlateau
+  mode: max         # maximizing F1
+  factor: 0.5       # lr * 0.5 on plateau
+  patience: 5      # epochs wait before reducing
+  min_lr: 1.0e-6    # floor

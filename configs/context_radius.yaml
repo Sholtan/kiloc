@@ -1,6 +1,0 @@
-backbone: "resnet18"      # resnet18 | resnet34
-input_size: 128           # 48 | 96 | 128
-is_pretrained: true
-dropout: 0.0
-adapt_small_inputs: true
-num_classes: 1

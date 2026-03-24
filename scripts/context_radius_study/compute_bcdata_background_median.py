@@ -7,6 +7,7 @@ from typing import Callable
 
 import cv2
 import numpy as np
+import h5py
 
 from kiloc.datasets.bcdata import BCDataDataset
 from kiloc.utils.config import get_paths
@@ -16,6 +17,9 @@ def _dummy_target_transform(_: np.ndarray) -> None:
     # BCDataDataset requires a callable, but this script never calls __getitem__.
     return None
 
+def _load_points(ann_path: Path) -> np.ndarray:
+    with h5py.File(ann_path, "r") as f:
+        return f["coordinates"][:]
 
 def _add_box_to_mask(
     mask: np.ndarray,
@@ -100,8 +104,8 @@ def compute_background_median(
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
         h, w, _ = img_rgb.shape
 
-        pos_pts = dataset._load_points(pos_ann_path)
-        neg_pts = dataset._load_points(neg_ann_path)
+        pos_pts = _load_points(pos_ann_path)
+        neg_pts = _load_points(neg_ann_path)
 
         if pos_pts.size == 0 and neg_pts.size == 0:
             all_pts = np.empty((0, 2), dtype=np.int64)

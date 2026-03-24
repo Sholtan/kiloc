@@ -1,0 +1,42 @@
+alpha_neg: 100.0
+alpha_pos: 100.0
+augmentation: true
+backbone: resnet50
+batch_size: 8
+count_loss: false
+ema: true
+ema_decay: 0.9995
+ema_device: null
+ema_start_epoch: 3
+epochs: 120
+in_hw:
+- 640
+- 640
+input_normalization: imagenet
+is_pretrained: true
+kernel_size: 3
+lambda_count: 0.25
+lambda_suppression: 0.4
+loss: sigmoid_weighted_mse_loss
+lr: 0.0005
+matching_radius: 10
+merge_radius: 1.5
+num_workers: 8
+out_hw:
+- 160
+- 160
+q: 2.0
+scheduler:
+  factor: 0.5
+  min_lr: 1.0e-06
+  mode: max
+  name: ReduceLROnPlateau
+  patience: 5
+seed: 67
+sigma: 3.0
+suppression_loss: true
+thr_neg: 0.86
+thr_pos: 0.875
+threshold: 0.725
+tta: false
+weight_decay: 0.01

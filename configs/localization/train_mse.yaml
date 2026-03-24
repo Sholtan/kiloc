@@ -1,0 +1,45 @@
+seed: 41
+loss: "sigmoid_weighted_mse_loss"
+epochs: 120
+batch_size: 8
+num_workers: 8
+lr: 5.0e-4
+weight_decay: 1.0e-2
+alpha_pos: 100.
+alpha_neg: 100.
+q: 2.
+is_pretrained: true
+input_normalization: imagenet
+sigma: 3.0
+out_hw: [160, 160]
+in_hw: [640, 640]
+kernel_size: 3
+
+threshold: 0.725
+thr_pos: 0.875
+thr_neg: 0.86
+
+merge_radius: 1.5
+matching_radius: 10
+augmentation: true
+count_loss: false
+lambda_count: 0.25
+scheduler:
+  name: ReduceLROnPlateau
+  mode: max         # maximizing F1
+  factor: 0.5       # lr * 0.5 on plateau
+  patience: 5      # epochs wait before reducing
+  min_lr: 1.0e-6    # floor
+
+
+ema: true
+ema_decay: 0.9995
+ema_start_epoch: 3
+ema_device: null
+
+tta: false
+
+suppression_loss: true
+lambda_suppression: 0.4
+
+backbone: resnet50

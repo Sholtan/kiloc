@@ -1,0 +1,50 @@
+# ── Context Radius Study: Point Classifier Training ──
+
+seed: 42
+
+# ── Data ──
+device_key: "h200"
+train_points_csv: "bcdata_point_tables/train_points.csv"
+val_points_csv: "bcdata_point_tables/validation_points.csv"
+background_stats_path: "configs/context_radius_study/bcdata_background_median.json"
+
+# ── Crop / Input ──
+crop_size: 192
+input_size: 96
+
+# ── Model ──
+backbone: "resnet18"
+is_pretrained: true
+dropout: 0.0
+adapt_small_inputs: true
+
+# ── Training ──
+epochs: 15
+batch_size: 128
+num_workers: 4
+lr: 3.0e-4
+weight_decay: 1.0e-4
+use_amp: true
+max_grad_norm: 1.0
+threshold: 0.5
+input_normalization: "imagenet"
+
+# ── Class balancing ──
+use_pos_weight: true
+# pos_weight: auto  # computed from CSV label counts
+
+# ── Augmentation ──
+augmentation: true
+
+# ── Scheduler ──
+scheduler:
+  name: "ReduceLROnPlateau"
+  mode: "max"
+  factor: 0.5
+  patience: 8
+  min_lr: 1.0e-6
+
+# ── EMA ──
+ema: false
+ema_decay: 0.999
+ema_start_epoch: 5
