@@ -57,7 +57,8 @@ def val_one_epoch(
     threshold: float | tuple[float, float] = 0.5,
     merge_radius: float = 1.5,
     matching_radius: float = 6.0,
-    tta: bool = False
+    tta: bool = False,
+    r_interclass: float | None = None,
 ) -> tuple[float, float, float, float, float, float, float, float, float, float, float]:
     model.eval()
     total_loss = 0.
@@ -79,7 +80,7 @@ def val_one_epoch(
             pred_heatmaps = tta_forward(model, img_batch) if tta else torch.sigmoid(logits)
 
             out_pos, out_neg = heatmaps_to_points_batch(
-                heatmaps=pred_heatmaps, kernel_size=kernel_size, threshold=threshold, merge_radius=merge_radius)
+                heatmaps=pred_heatmaps, kernel_size=kernel_size, threshold=threshold, merge_radius=merge_radius, r_interclass=r_interclass)
 
             for pred, gt in zip(out_pos, pos_pts_tuple):
                 tp, fp, fn = compute_metrics(pred, gt.astype(

@@ -6,6 +6,51 @@ import torch
 import torch.nn.functional as F
 from numpy.typing import NDArray
 
+
+def _interclass_suppression(pos_pts, neg_pts, pos_heatmap, neg_heatmap, r_interclass):
+    """
+    When a pos and neg prediction are within r_interclass of each other,
+    keep the one with the higher heatmap score.
+    
+    pos_pts, neg_pts: np.ndarray shape (N,2) in (x,y) order
+    pos_heatmap, neg_heatmap: torch.Tensor shape (H,W)
+    """
+    if len(pos_pts) == 0 or len(neg_pts) == 0:
+        return pos_pts, neg_pts
+
+    r2 = r_interclass ** 2
+
+    # Get scores at each point location (x,y → heatmap[y,x])
+    pos_scores = np.array([pos_heatmap[int(round(y)), int(round(x))].item() 
+                           for x, y in pos_pts])
+    neg_scores = np.array([neg_heatmap[int(round(y)), int(round(x))].item() 
+                           for x, y in neg_pts])
+
+    # Pairwise distances: (N_pos, N_neg)
+    diff = pos_pts[:, None, :] - neg_pts[None, :, :]  # (N_pos, N_neg, 2)
+    dist2 = (diff ** 2).sum(axis=2)                     # (N_pos, N_neg)
+
+    suppress_pos = set()
+    suppress_neg = set()
+
+    conflicts = np.argwhere(dist2 < r2)
+    for pi, ni in conflicts:
+        if pi in suppress_pos or ni in suppress_neg:
+            continue
+        if pos_scores[pi] >= neg_scores[ni]:
+            suppress_neg.add(ni)
+        else:
+            suppress_pos.add(pi)
+
+    keep_pos = np.array([i for i in range(len(pos_pts)) if i not in suppress_pos])
+    keep_neg = np.array([i for i in range(len(neg_pts)) if i not in suppress_neg])
+
+    pos_out = pos_pts[keep_pos] if len(keep_pos) > 0 else np.zeros((0, 2), dtype=np.float32)
+    neg_out = neg_pts[keep_neg] if len(keep_neg) > 0 else np.zeros((0, 2), dtype=np.float32)
+
+    return pos_out, neg_out
+
+
 def _as_pair(x, name: str) -> tuple[float, float]:
     if isinstance(x, (tuple, list)):
         if len(x) != 2:
@@ -22,6 +67,7 @@ def heatmaps_to_points_batch(
     output_hw: tuple = (640, 640),
     merge_radius: float = 1.5,
     refine: bool = True,
+    r_interclass: float | None = None,
 ):
     """
         Recover points centers from batched 2-channel heatmaps
@@ -60,7 +106,7 @@ def heatmaps_to_points_batch(
     for b in range(heatmaps.shape[0]):   # loop over batch samples
         pos_pts, neg_pts = heatmaps_to_points(
             heatmaps[b], kernel_size=kernel_size, threshold=threshold,
-            merge_radius=merge_radius, refine=refine
+            merge_radius=merge_radius, refine=refine, r_interclass=r_interclass
         )
 
         if output_hw is not None:
@@ -80,7 +126,8 @@ def heatmaps_to_points(
         kernel_size: int, 
         threshold: float | tuple[float, float], 
         merge_radius:float =1.5, 
-        refine: bool = True
+        refine: bool = True,
+        r_interclass: float | None = None,
 ):
     """
     Recover points from a single sample heatmap with shape (2, H, W).
@@ -103,6 +150,10 @@ def heatmaps_to_points(
         neg_heatmap, kernel_size=kernel_size, threshold=thr_neg,
         merge_radius=merge_radius, refine=refine
     )
+
+    if r_interclass is not None and r_interclass > 0:
+        pos_pts, neg_pts = _interclass_suppression(
+            pos_pts, neg_pts, pos_heatmap, neg_heatmap, r_interclass)
 
     return pos_pts, neg_pts
 

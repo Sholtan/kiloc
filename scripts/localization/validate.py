@@ -12,11 +12,7 @@ from kiloc.training.train import val_one_epoch
 from kiloc.losses.losses import SigmoidWeightedMSE
 
 
-# make validate use thresholds_pos, thresholds_neg!!!
-# measure f1 on valid and test sets
-
-
-def main(run_dir, split, checkpoint):
+def main(run_dir, split, checkpoint, r_interclass):
     with open(run_dir / 'config.yaml') as f:
         cfg = yaml.safe_load(f)
 
@@ -58,7 +54,7 @@ def main(run_dir, split, checkpoint):
             model=model, criterion=criterion, device=device, val_loader=loader,
             kernel_size=cfg['kernel_size'], threshold = threshold,
             merge_radius=cfg['merge_radius'], matching_radius=cfg['matching_radius'],
-            tta=cfg.get('tta', False)
+            tta=cfg.get('tta', False), r_interclass = r_interclass
         )
 
     results = {
@@ -83,5 +79,6 @@ if __name__ == '__main__':
     parser.add_argument('--run_dir', required=True)
     parser.add_argument('--split', default='validation', choices=['train', 'test', 'validation'])
     parser.add_argument('--checkpoint', default = None)
+    parser.add_argument('--r_interclass', default=15., type=float)
     args = parser.parse_args()
-    main(Path(args.run_dir), args.split, args.checkpoint)
+    main(Path(args.run_dir), args.split, args.checkpoint, args.r_interclass)

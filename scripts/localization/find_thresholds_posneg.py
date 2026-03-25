@@ -20,7 +20,7 @@ def safe_f1(precision, recall):
     return 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
 
-def main(run_dir, split, checkpoint, thresholds_pos, thresholds_neg):
+def main(run_dir, split, checkpoint, thresholds_pos, thresholds_neg, r_interclass):
     with open(run_dir / 'config.yaml') as f:
         cfg = yaml.safe_load(f)
     use_tta = cfg.get('tta', False)
@@ -91,7 +91,8 @@ def main(run_dir, split, checkpoint, thresholds_pos, thresholds_neg):
                     heatmaps=heatmap.unsqueeze(0),
                     kernel_size=cfg['kernel_size'],
                     threshold=(thr_pos, thr_neg),
-                    merge_radius=cfg['merge_radius']
+                    merge_radius=cfg['merge_radius'],
+                    r_interclass = r_interclass
                 )
 
                 tp, fp, fn = compute_metrics(out_pos[0], gt_pos, cfg['matching_radius'])
@@ -214,7 +215,7 @@ if __name__ == '__main__':
     parser.add_argument('--run_dir', required=True)
     parser.add_argument('--split', default='validation', choices=['train', 'test', 'validation'])
     parser.add_argument('--checkpoint', default=None)
-
+    
     parser.add_argument(
         '--thresholds_pos',
         nargs=3,
@@ -231,7 +232,7 @@ if __name__ == '__main__':
         default=[0.86, 0.89, 5],
         help='Negative threshold sweep as: START END NUM (inclusive)'
     )
-
+    parser.add_argument('--r_interclass', default=15, type=float)
     args = parser.parse_args()
 
     thresholds_pos = expand_sweep(args.thresholds_pos, 'thresholds_pos')
@@ -246,4 +247,5 @@ if __name__ == '__main__':
         args.checkpoint,
         thresholds_pos,
         thresholds_neg,
+        args.r_interclass,
     )

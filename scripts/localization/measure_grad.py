@@ -353,7 +353,7 @@ def main(config_path, run_name):
     )
 
     # build model
-    model = KiLocNet(pretrained=is_pretrained)
+    model = KiLocNet(pretrained=is_pretrained, backbone_name=cfg['backbone'])
     device = 'cpu'
     if torch.cuda.is_available():
         device = 'cuda'
@@ -438,7 +438,7 @@ def main(config_path, run_name):
         )
         total_loss_val, precision, recall, f1, \
             precision_pos, recall_pos, f1_pos, \
-                precision_neg, recall_neg, f1_neg = val_result
+                precision_neg, recall_neg, f1_neg, f1_macro  = val_result
 
         print(
             f"Epoch {epoch_num}/{epochs} | train={total_loss_train:.4f} | val={total_loss_val:.4f} | "
@@ -447,9 +447,9 @@ def main(config_path, run_name):
 
         # save weights if val_los is new minimum
         # trying to save best f1
-        if f1 > best_f1:  #total_loss_val < best_val_loss:
+        if f1_macro > best_f1:  #total_loss_val < best_val_loss:
             #best_val_loss = total_loss_val
-            best_f1 = f1
+            best_f1 = f1_macro
             torch.save(model.state_dict(), run_dir / "kilocnet_epoch_best.pth")
             best_epoch = epoch_num
 
@@ -470,6 +470,7 @@ def main(config_path, run_name):
             "recall_neg": recall_neg,
             "f1_neg": f1_neg,
             "lr": optimizer.param_groups[0]['lr'],
+            "f1_macro":f1_macro,
             "train_det_loss": train_stats['train_det_loss'],
             "train_cnt_loss": train_stats['train_cnt_loss'],
             "grad_det_norm": train_stats['grad_det_norm'],
@@ -482,7 +483,7 @@ def main(config_path, run_name):
             json.dump(history, f, indent=2)
 
         if scheduler is not None:
-            scheduler.step(f1)
+            scheduler.step(f1_macro)
 
     best_path = run_dir / "kilocnet_epoch_best.pth"
     best_path.rename(run_dir / f"kilocnet_best_f1_epoch_{best_epoch}.pth")

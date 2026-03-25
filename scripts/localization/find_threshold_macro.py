@@ -20,16 +20,14 @@ def safe_f1(precision, recall):
     return 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
 
-def main(run_dir, split, checkpoint, thresholds):
+def main(run_dir, split, checkpoint, thresholds, r_interclass):
     with open(run_dir / 'config.yaml') as f:
         cfg = yaml.safe_load(f)
     use_tta = cfg.get('tta', False)
     print(f"use_tta: {use_tta}")
     if checkpoint is not None:
-        print("checkpoint is not none")
         ckpt_paths = [run_dir / checkpoint]
     else:
-        print("checkpoint is none")
         ckpt_paths = list(run_dir.glob('*.pth'))
         assert len(ckpt_paths) == 1, f"Expected 1 checkpoint, found {ckpt_paths}"
 
@@ -90,7 +88,8 @@ def main(run_dir, split, checkpoint, thresholds):
                 heatmaps=heatmap.unsqueeze(0),
                 kernel_size=cfg['kernel_size'],
                 threshold=threshold,
-                merge_radius=cfg['merge_radius']
+                merge_radius=cfg['merge_radius'],
+                r_interclass = r_interclass
             )
 
             tp, fp, fn = compute_metrics(out_pos[0], gt_pos, cfg['matching_radius'])
@@ -202,5 +201,6 @@ if __name__ == '__main__':
         #default=[round(0.025 + i * 0.025, 3) for i in range(20)]
         default=[round(0.025 + i * 0.025, 3) for i in range(39)]
     )
+    parser.add_argument('--r_interclass', default=15, type=float)
     args = parser.parse_args()
-    main(Path(args.run_dir), args.split, args.checkpoint, args.thresholds)
+    main(Path(args.run_dir), args.split, args.checkpoint, args.thresholds, args.r_interclass)

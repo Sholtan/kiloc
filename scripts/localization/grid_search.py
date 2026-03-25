@@ -30,7 +30,7 @@ def run_one(i, combo, param_names, base_cfg, gridrun_name, grid_runs_dir, gpu_id
     env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
     cmd = [
-        "python", "scripts/run_train.py",
+        "python", "scripts/localization/run_train.py",
         "--config", str(temp_config_path),
         "--out_dir", gridrun_name,
         "--run_name", run_name,

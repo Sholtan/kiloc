@@ -243,7 +243,7 @@ def main(config_path, run_suffix, out_dir, run_name):
                                                               device=device, val_loader=dataloader_val,
                                                               kernel_size=kernel_size, threshold=threshold,
                                                               merge_radius=merge_radius, matching_radius=matching_radius,
-                                                              tta=False)
+                                                              tta=False, r_interclass = r_interclass)
         total_loss_val, precision, recall, f1, \
             precision_pos, recall_pos, f1_pos, \
                 precision_neg, recall_neg, f1_neg, f1_macro = val_result
@@ -314,5 +314,6 @@ if __name__ == '__main__':
     parser.add_argument('--run_suffix', default=None)
     parser.add_argument('--out_dir', default=None)
     parser.add_argument('--run_name', default=None)
+    parser.add_argument('--r_interclass', default=15, type=float)
     args = parser.parse_args()
     main(args.config, args.run_suffix, args.out_dir, args.run_name)
