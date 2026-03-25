@@ -1,0 +1,37 @@
+[
+  {
+    "fold": 0,
+    "num_images": 160,
+    "num_pos": 6893,
+    "num_neg": 11866,
+    "num_cells": 18759
+  },
+  {
+    "fold": 1,
+    "num_images": 161,
+    "num_pos": 6866,
+    "num_neg": 11912,
+    "num_cells": 18778
+  },
+  {
+    "fold": 2,
+    "num_images": 161,
+    "num_pos": 6460,
+    "num_neg": 12313,
+    "num_cells": 18773
+  },
+  {
+    "fold": 3,
+    "num_images": 161,
+    "num_pos": 6420,
+    "num_neg": 12349,
+    "num_cells": 18769
+  },
+  {
+    "fold": 4,
+    "num_images": 160,
+    "num_pos": 6419,
+    "num_neg": 12340,
+    "num_cells": 18759
+  }
+]

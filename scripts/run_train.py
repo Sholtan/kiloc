@@ -17,6 +17,7 @@ from kiloc.utils.config import get_paths
 from kiloc.datasets.bcdata import BCDataDataset, collate_fn, AlbumentationsJointTransform
 from kiloc.target_generation.heatmaps import LocHeatmap
 from kiloc.model.kiloc_net import KiLocNet
+from kiloc.training.checkpoints import save_single_best_checkpoint
 from kiloc.training.train import train_one_epoch, val_one_epoch
 from kiloc.training.ema import ModelEMA
 from kiloc.losses.losses import sigmoid_focal_loss, SigmoidWeightedMSE, SigmoidSumHuber
@@ -225,6 +226,7 @@ def main(config_path, run_suffix, out_dir, run_name):
     best_f1_macro = -1.
     history = []
     best_epoch = -1
+    best_checkpoint_path = None
     for i in range(epochs):
         if use_ema and ema is None and i == ema_start_epoch:
             ema = ModelEMA(
@@ -255,15 +257,14 @@ def main(config_path, run_suffix, out_dir, run_name):
         # trying to save best f1
         if f1_macro > best_f1_macro:  #total_loss_val < best_val_loss:
             best_f1_macro = f1_macro
-            torch.save(model.state_dict(), run_dir / "kilocnet_epoch_best.pth")
             best_epoch = i + 1
-            if ema is not None:
-                torch.save(ema.module.state_dict(), run_dir / "kilocnet_epoch_best_ema.pth")
-        
-        if i == epochs-1:
-            torch.save(model.state_dict(), run_dir / "kilocnet_epoch_last.pth")
-            if ema is not None:
-                torch.save(ema.module.state_dict(), run_dir / "kilocnet_epoch_last_ema.pth")
+            best_checkpoint_path = save_single_best_checkpoint(
+                run_dir=run_dir,
+                best_epoch=best_epoch,
+                model=model,
+                ema_module=ema.module if ema is not None else None,
+                previous_checkpoint_path=best_checkpoint_path,
+            )
 
         history.append({
             "epoch": i+1,
@@ -294,13 +295,8 @@ def main(config_path, run_suffix, out_dir, run_name):
         
 
 
-    
-    best_path = run_dir / "kilocnet_epoch_best.pth"
-    best_path.rename(run_dir / f"kilocnet_best_f1_epoch_{best_epoch}.pth")
-    
-    best_path_ema = run_dir / "kilocnet_epoch_best_ema.pth"
-    if best_path_ema.exists():
-        best_path_ema.rename(run_dir / f"kilocnet_best_f1_epoch_{best_epoch}_ema.pth")
+    if best_checkpoint_path is None:
+        raise RuntimeError("Training finished without saving a best checkpoint.")
 
     print(f"BEST EPOCH WAS: {best_epoch}")
 

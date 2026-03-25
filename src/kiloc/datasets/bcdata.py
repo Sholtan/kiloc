@@ -72,12 +72,14 @@ class BCDataDataset(Dataset):
             target_transform: Callable,
             joint_transform: Callable | None = None,
             input_normalization: str | None = None,
+            image_ids: set[str] | list[str] | tuple[str, ...] | None = None,
     ) -> None:
         self.root = Path(root)
         self.split = split
         self.target_transform = target_transform
         self.joint_transform = joint_transform
         self.input_normalization = input_normalization
+        self.image_ids = None if image_ids is None else {str(image_id) for image_id in image_ids}
 
         if split not in self.SUPPORTED_SPLITS:
             raise ValueError(
@@ -85,6 +87,8 @@ class BCDataDataset(Dataset):
         if not callable(target_transform):
             raise TypeError(
                 "target_transform must be callable (carries out heatmap generation)")
+        if self.image_ids is not None and len(self.image_ids) == 0:
+            raise ValueError("image_ids must not be empty if provided")
 
         self.image_dir = self.root / "images" / self.split
         self.pos_ann_dir = self.root / "annotations" / self.split / "positive"
@@ -101,9 +105,12 @@ class BCDataDataset(Dataset):
             raise RuntimeError(f"No images found in {self.image_dir}")
 
         samples: list[tuple[Path, Path, Path]] = []
+        found_image_ids: set[str] = set()
 
         for img_path in image_paths:
             stem = img_path.stem   # the image name without .png extension
+            if self.image_ids is not None and stem not in self.image_ids:
+                continue
 
             pos_ann_path = self.pos_ann_dir / (stem + ".h5")
             neg_ann_path = self.neg_ann_dir / (stem + ".h5")
@@ -114,6 +121,16 @@ class BCDataDataset(Dataset):
                 raise FileNotFoundError(f"Missing annotation: {neg_ann_path}")
 
             samples.append((img_path, pos_ann_path, neg_ann_path))
+            found_image_ids.add(stem)
+
+        if self.image_ids is not None:
+            missing = sorted(self.image_ids.difference(found_image_ids))
+            if missing:
+                raise FileNotFoundError(
+                    f"Requested image_ids were not found in split={self.split}: {missing[:10]}"
+                )
+            if not samples:
+                raise RuntimeError(f"No samples matched image_ids for split={self.split}")
 
         return samples
 

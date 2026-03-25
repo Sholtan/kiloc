@@ -15,6 +15,7 @@ from kiloc.utils.config import get_paths
 from kiloc.datasets.bcdata import BCDataDataset, collate_fn, AlbumentationsJointTransform
 from kiloc.target_generation.heatmaps import LocHeatmap
 from kiloc.model.kiloc_net import KiLocNet
+from kiloc.training.checkpoints import save_single_best_checkpoint
 from kiloc.training.train import val_one_epoch
 
 from kiloc.losses.losses import sigmoid_focal_loss, SigmoidWeightedMSE, SigmoidSumHuber
@@ -391,6 +392,7 @@ def main(config_path, run_name):
     best_f1 = -1.
     history = []
     best_epoch = -1
+    best_checkpoint_path = None
     for i in range(epochs):
         epoch_num = i + 1
         should_measure_this_epoch = (
@@ -450,11 +452,13 @@ def main(config_path, run_name):
         if f1 > best_f1:  #total_loss_val < best_val_loss:
             #best_val_loss = total_loss_val
             best_f1 = f1
-            torch.save(model.state_dict(), run_dir / "kilocnet_epoch_best.pth")
             best_epoch = epoch_num
-
-        if i == epochs - 1:
-            torch.save(model.state_dict(), run_dir / "kilocnet_epoch_last.pth")
+            best_checkpoint_path = save_single_best_checkpoint(
+                run_dir=run_dir,
+                best_epoch=best_epoch,
+                model=model,
+                previous_checkpoint_path=best_checkpoint_path,
+            )
 
         history_entry = {
             "epoch": epoch_num,
@@ -484,8 +488,8 @@ def main(config_path, run_name):
         if scheduler is not None:
             scheduler.step(f1)
 
-    best_path = run_dir / "kilocnet_epoch_best.pth"
-    best_path.rename(run_dir / f"kilocnet_best_f1_epoch_{best_epoch}.pth")
+    if best_checkpoint_path is None:
+        raise RuntimeError("Training finished without saving a best checkpoint.")
     print(f"BEST EPOCH WAS: {best_epoch}")
 
 

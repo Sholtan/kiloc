@@ -1,0 +1,23 @@
+base_config: configs/train_mse.yaml
+base_checkpoint: checkpoints/localization/gridrun_20260321_112309/backbone_resnet50_seed_51/kilocnet_best_f1_epoch_66_ema.pth
+hardneg_csv: checkpoints/oof/full120_5fold/train_oof_mined_fp.csv
+
+epochs: 10
+lr: 2.0e-5
+weight_decay: 1.0e-2
+batch_size: 8
+num_workers: 4
+augmentation: false
+
+lambda_hardneg: 0.005
+hardneg_loss_name: local_gce
+hardneg_gce_q: 0.7
+hardneg_sigma: 1.5
+hardneg_aggregation: max
+hardneg_use_score_weights: false
+hardneg_constant_weight: 1.0
+hardneg_clamp_max: 1.0
+hardneg_min_score: 0.92
+hardneg_pred_classes:
+  - neg
+hardneg_max_points_per_image: 5

@@ -1,0 +1,20 @@
+base_config: configs/train_mse.yaml
+base_checkpoint: checkpoints/REPLACE_WITH_BASE_RUN/kilocnet_best_f1_epoch_XX_ema.pth
+hardneg_csv: checkpoints/oof/full120_5fold/train_oof_mined_fp.csv
+
+epochs: 10
+lr: 1.0e-4
+weight_decay: 1.0e-2
+batch_size: 8
+num_workers: 8
+augmentation: false
+
+lambda_hardneg: 0.5
+hardneg_sigma: 2.0
+hardneg_aggregation: max
+hardneg_use_score_weights: false
+hardneg_constant_weight: 1.0
+hardneg_clamp_max: null
+hardneg_min_score: null
+hardneg_pred_classes: null
+hardneg_max_points_per_image: null
