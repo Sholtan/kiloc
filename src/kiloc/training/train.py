@@ -57,10 +57,50 @@ def val_one_epoch(
     threshold: float | tuple[float, float] = 0.5,
     merge_radius: float = 1.5,
     matching_radius: float = 6.0,
-    tta: bool = False
+    tta: bool = False,
+    matching_mode: str = "optimal",
 ) -> tuple[float, float, float, float, float, float, float, float, float, float, float]:
+    result = val_one_epoch_detailed(
+        model=model,
+        criterion=criterion,
+        device=device,
+        val_loader=val_loader,
+        kernel_size=kernel_size,
+        threshold=threshold,
+        merge_radius=merge_radius,
+        matching_radius=matching_radius,
+        tta=tta,
+        matching_mode=matching_mode,
+    )
+    return (
+        result["val_loss"],
+        result["precision"],
+        result["recall"],
+        result["f1"],
+        result["precision_pos"],
+        result["recall_pos"],
+        result["f1_pos"],
+        result["precision_neg"],
+        result["recall_neg"],
+        result["f1_neg"],
+        result["f1_macro"],
+    )
+
+
+def val_one_epoch_detailed(
+    model: KiLocNet,
+    criterion: Callable,
+    device: torch.device | str,
+    val_loader: DataLoader,
+    kernel_size: int = 3,
+    threshold: float | tuple[float, float] = 0.5,
+    merge_radius: float = 1.5,
+    matching_radius: float = 6.0,
+    tta: bool = False,
+    matching_mode: str = "optimal",
+) -> dict[str, float | int]:
     model.eval()
-    total_loss = 0.
+    total_loss = 0.0
 
     tp_pos = fp_pos = fn_pos = 0
     tp_neg = fp_neg = fn_neg = 0
@@ -71,67 +111,91 @@ def val_one_epoch(
             heatmaps_batch = heatmaps_batch.to(device, non_blocking=True)
 
             logits = model(img_batch)
-            loss = criterion(logits, heatmaps_batch,
-                             pos_pts_tuple, neg_pts_tuple)
+            loss = criterion(logits, heatmaps_batch, pos_pts_tuple, neg_pts_tuple)
             total_loss += loss.item()
 
-            #pred_heatmaps = torch.sigmoid(logits)
             pred_heatmaps = tta_forward(model, img_batch) if tta else torch.sigmoid(logits)
 
             out_pos, out_neg = heatmaps_to_points_batch(
-                heatmaps=pred_heatmaps, kernel_size=kernel_size, threshold=threshold, merge_radius=merge_radius)
+                heatmaps=pred_heatmaps,
+                kernel_size=kernel_size,
+                threshold=threshold,
+                merge_radius=merge_radius,
+            )
 
             for pred, gt in zip(out_pos, pos_pts_tuple):
-                tp, fp, fn = compute_metrics(pred, gt.astype(
-                    np.float32), radius=matching_radius)
+                tp, fp, fn = compute_metrics(
+                    pred,
+                    gt.astype(np.float32),
+                    radius=matching_radius,
+                    matching_mode=matching_mode,
+                )
                 tp_pos += tp
                 fp_pos += fp
                 fn_pos += fn
 
             for pred, gt in zip(out_neg, neg_pts_tuple):
-                tp, fp, fn = compute_metrics(pred, gt.astype(
-                    np.float32), radius=matching_radius)
+                tp, fp, fn = compute_metrics(
+                    pred,
+                    gt.astype(np.float32),
+                    radius=matching_radius,
+                    matching_mode=matching_mode,
+                )
                 tp_neg += tp
                 fp_neg += fp
                 fn_neg += fn
 
+    precision_pos = tp_pos / (tp_pos + fp_pos) if (tp_pos + fp_pos) > 0 else 0.0
+    recall_pos = tp_pos / (tp_pos + fn_pos) if (tp_pos + fn_pos) > 0 else 0.0
+    f1_pos = (
+        2 * precision_pos * recall_pos / (precision_pos + recall_pos)
+        if (precision_pos + recall_pos) > 0
+        else 0.0
+    )
 
+    precision_neg = tp_neg / (tp_neg + fp_neg) if (tp_neg + fp_neg) > 0 else 0.0
+    recall_neg = tp_neg / (tp_neg + fn_neg) if (tp_neg + fn_neg) > 0 else 0.0
+    f1_neg = (
+        2 * precision_neg * recall_neg / (precision_neg + recall_neg)
+        if (precision_neg + recall_neg) > 0
+        else 0.0
+    )
 
-    # Compute metrics for positive
-    precision_pos = tp_pos / \
-        (tp_pos + fp_pos) if (tp_pos + fp_pos) > 0 else 0.0
-    recall_pos = tp_pos / \
-        (tp_pos + fn_pos) if (tp_pos + fn_pos) > 0 else 0.0
-    f1_pos = 2 * precision_pos * recall_pos / \
-        (precision_pos + recall_pos) if (precision_pos + recall_pos) > 0 else 0.0
-
-    # Compute metrics for negative
-    precision_neg = tp_neg / \
-        (tp_neg + fp_neg) if (tp_neg + fp_neg) > 0 else 0.0
-    recall_neg = tp_neg / \
-        (tp_neg + fn_neg) if (tp_neg + fn_neg) > 0 else 0.0
-    f1_neg = 2 * precision_neg * recall_neg / \
-        (precision_neg + recall_neg) if (precision_neg + recall_neg) > 0 else 0.0
-
-    # Compute overall metrics
     tp_both = tp_pos + tp_neg
     fp_both = fp_pos + fp_neg
     fn_both = fn_pos + fn_neg
 
-    # micro
-    precision_both = tp_both / \
-        (tp_both + fp_both) if (tp_both + fp_both) > 0 else 0.0
-    recall_both = tp_both / \
-        (tp_both + fn_both) if (tp_both + fn_both) > 0 else 0.0
-    f1_both = 2 * precision_both * recall_both / \
-        (precision_both + recall_both) if (precision_both + recall_both) > 0 else 0.0
-    
-    #macro
+    precision_both = tp_both / (tp_both + fp_both) if (tp_both + fp_both) > 0 else 0.0
+    recall_both = tp_both / (tp_both + fn_both) if (tp_both + fn_both) > 0 else 0.0
+    f1_both = (
+        2 * precision_both * recall_both / (precision_both + recall_both)
+        if (precision_both + recall_both) > 0
+        else 0.0
+    )
+
     precision_macro = 0.5 * (precision_pos + precision_neg)
     recall_macro = 0.5 * (recall_pos + recall_neg)
     f1_macro = 0.5 * (f1_pos + f1_neg)
 
     total_loss /= len(val_loader)
-    return total_loss, precision_both, recall_both, f1_both, \
-        precision_pos, recall_pos, f1_pos, \
-        precision_neg, recall_neg, f1_neg, f1_macro
+    return {
+        "val_loss": total_loss,
+        "precision": precision_both,
+        "recall": recall_both,
+        "f1": f1_both,
+        "precision_pos": precision_pos,
+        "recall_pos": recall_pos,
+        "f1_pos": f1_pos,
+        "precision_neg": precision_neg,
+        "recall_neg": recall_neg,
+        "f1_neg": f1_neg,
+        "precision_macro": precision_macro,
+        "recall_macro": recall_macro,
+        "f1_macro": f1_macro,
+        "tp_pos": tp_pos,
+        "fp_pos": fp_pos,
+        "fn_pos": fn_pos,
+        "tp_neg": tp_neg,
+        "fp_neg": fp_neg,
+        "fn_neg": fn_neg,
+    }

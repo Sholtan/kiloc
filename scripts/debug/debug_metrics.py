@@ -96,20 +96,21 @@ gt_pts = np.array([(0, 0), (10, 0)], dtype=np.int64)
 
 radius = 6.
 tp, fp, fn = compute_metrics(pred_pts=pred_pts, gt_pts=gt_pts, radius=radius, )
-# must be (1, 1, 1)
-assert (1, 1, 1) == (tp, fp, fn)
+# default matching is optimal now, so this should recover both matches
+assert (2, 0, 0) == (tp, fp, fn)
 assert tp + fp == len(pred_pts)
 assert tp + fn == len(gt_pts)
 
-# The optimal assignment for case 8 would be (2, 0, 0):
-# pred=(0,0) → gt=(0,0) (dist 0)
-# pred=(5,0) → gt=(10,0) (dist 5, within radius 6)
-# But the greedy implementation matches pred=(5,0) first (it's pred[0]), picks gt=(0,0) (dist 5, ties broken by argmin returning first index), then pred=(0,0) finds gt=(0,0) already matched and gt=(10,0) at dist 10 > 6.
+tp, fp, fn = compute_metrics(
+    pred_pts=pred_pts,
+    gt_pts=gt_pts,
+    radius=radius,
+    matching_mode="greedy",
+)
+assert (1, 1, 1) == (tp, fp, fn)
 
-# So (1, 1, 1) is correct for the greedy implementation, but the comment should say so explicitly. Otherwise when someone sees this result during debugging they'll think it's a bug. Add a note like:
-
-
-# # greedy order-dependent: pred[0]=(5,0) claims gt[0]=(0,0) before pred[1]=(0,0) can
-# This is a known limitation of greedy matching — it's the accepted design per decisions.md, but case 8 is exactly the failure mode worth documenting.
+# Greedy is still order-dependent here:
+# pred[0]=(5,0) claims gt[0]=(0,0) first, so pred[1]=(0,0) cannot recover gt[1]=(10,0).
+# Optimal matching correctly returns (2, 0, 0) for the same points.
 
 print("all cases passed")

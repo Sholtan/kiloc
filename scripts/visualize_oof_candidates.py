@@ -3,7 +3,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from kiloc.oof import load_gt_by_image_from_image_paths, read_relation_csv
+from kiloc.oof import (
+    load_gt_by_image_from_image_paths,
+    read_relation_csv,
+    resolve_relation_csv_path,
+)
 from kiloc.utils.config import get_paths
 
 
@@ -16,19 +20,23 @@ DEFAULT_VISUAL_FILTER_REASONS = (
 )
 
 
-def _resolve_fold_run_dir(run_dir: Path, fold_index: int) -> Path:
-    direct_relations_path = run_dir / f"fold_{fold_index}_prediction_relations.csv"
-    if direct_relations_path.exists():
-        return run_dir
+def _resolve_fold_run_dir(run_dir: Path, fold_index: int, relation_tag: str | None) -> Path:
+    candidates = [run_dir, run_dir / f"fold_{fold_index}"]
+    for candidate in candidates:
+        try:
+            resolve_relation_csv_path(candidate, fold_index=fold_index, tag=relation_tag)
+            return candidate
+        except FileNotFoundError:
+            continue
 
-    nested_run_dir = run_dir / f"fold_{fold_index}"
-    nested_relations_path = nested_run_dir / f"fold_{fold_index}_prediction_relations.csv"
-    if nested_relations_path.exists():
-        return nested_run_dir
+    raise FileNotFoundError(f"Could not find relation CSV for fold_{fold_index} under {run_dir}")
 
-    raise FileNotFoundError(
-        f"Could not find fold_{fold_index}_prediction_relations.csv under {run_dir}"
-    )
+
+def _resolve_visual_root_dir(run_dir: Path, fold_run_dir: Path, fold_index: int) -> Path:
+    expected_fold_dir_name = f"fold_{fold_index}"
+    if fold_run_dir.name == expected_fold_dir_name:
+        return fold_run_dir.parent
+    return run_dir
 
 
 def _resolve_requested_reasons(args: argparse.Namespace) -> list[str]:
@@ -57,6 +65,7 @@ def main() -> None:
     parser.add_argument("--fold-index", required=True, type=int)
     parser.add_argument("--device-key", default="h200", choices=["hpvictus", "collab", "h200"])
     parser.add_argument("--out-dir", default=None, type=Path)
+    parser.add_argument("--relation-tag", default=None)
     parser.add_argument("--max-images-per-reason", "--max-per-reason", dest="max_images_per_reason", type=int, default=None)
     parser.add_argument("--dpi", type=int, default=150)
     parser.add_argument("--kept-for-mining", action="store_true")
@@ -66,12 +75,12 @@ def main() -> None:
     parser.add_argument("--sameclass-duplicate", action="store_true")
     args = parser.parse_args()
 
-    fold_run_dir = _resolve_fold_run_dir(args.run_dir, args.fold_index)
-    relation_csv_path = fold_run_dir / f"fold_{args.fold_index}_prediction_relations.csv"
-    if not relation_csv_path.exists():
-        raise FileNotFoundError(
-            f"Missing relation CSV: {relation_csv_path}. Run build_oof_relations.py first."
-        )
+    fold_run_dir = _resolve_fold_run_dir(args.run_dir, args.fold_index, args.relation_tag)
+    relation_csv_path = resolve_relation_csv_path(
+        fold_run_dir,
+        fold_index=args.fold_index,
+        tag=args.relation_tag,
+    )
 
     relation_rows = read_relation_csv(relation_csv_path)
     if not relation_rows:
@@ -85,7 +94,10 @@ def main() -> None:
     gt_by_image = load_gt_by_image_from_image_paths(data_root, relation_image_paths)
 
     if args.out_dir is None:
-        output_dir = fold_run_dir / "candidate_visualizations" / f"fold_{args.fold_index}"
+        visual_root_dir = _resolve_visual_root_dir(args.run_dir, fold_run_dir, args.fold_index)
+        output_dir = visual_root_dir / "images" / f"fold_{args.fold_index}"
+        if args.relation_tag is not None:
+            output_dir = output_dir / args.relation_tag
     else:
         output_dir = args.out_dir
 

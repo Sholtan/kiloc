@@ -8,6 +8,44 @@ from typing import Any
 import numpy as np
 
 
+def relation_artifact_dir(run_dir: str | Path) -> Path:
+    return Path(run_dir) / "relations"
+
+
+def relation_artifact_paths(
+    run_dir: str | Path,
+    *,
+    fold_index: int,
+    tag: str | None = None,
+) -> tuple[Path, Path]:
+    base_dir = relation_artifact_dir(run_dir)
+    suffix = "" if tag is None else f"_{tag}"
+    relation_csv_path = base_dir / f"fold_{fold_index}_prediction_relations{suffix}.csv"
+    relation_summary_path = base_dir / f"fold_{fold_index}_relation_summary{suffix}.json"
+    return relation_csv_path, relation_summary_path
+
+
+def resolve_relation_csv_path(
+    run_dir: str | Path,
+    *,
+    fold_index: int,
+    tag: str | None = None,
+) -> Path:
+    run_dir = Path(run_dir)
+    preferred_path, _ = relation_artifact_paths(run_dir, fold_index=fold_index, tag=tag)
+    if preferred_path.exists():
+        return preferred_path
+
+    suffix = "" if tag is None else f"_{tag}"
+    legacy_path = run_dir / f"fold_{fold_index}_prediction_relations{suffix}.csv"
+    if legacy_path.exists():
+        return legacy_path
+
+    raise FileNotFoundError(
+        f"Could not find relation CSV for fold {fold_index} under {run_dir}"
+    )
+
+
 def _empty_points() -> np.ndarray:
     return np.empty((0, 2), dtype=np.float32)
 

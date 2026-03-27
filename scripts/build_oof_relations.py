@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 import yaml
@@ -10,11 +11,15 @@ from kiloc.oof import (
     build_relation_rows,
     load_gt_by_image_from_image_paths,
     read_raw_prediction_csv,
+    relation_artifact_paths,
     summarize_relation_rows,
     write_relation_csv,
     write_relation_summary,
 )
 from kiloc.utils.config import get_paths
+
+
+TAG_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
 def _resolve_fold_index(run_dir: Path, raw_csv_path: Path) -> int:
@@ -46,9 +51,13 @@ def main() -> None:
     parser.add_argument("--r-exclude-any", type=float, default=None)
     parser.add_argument("--r-cluster-same", type=float, default=None)
     parser.add_argument("--r-interclass-conflict", type=float, default=None)
+    parser.add_argument("--tag", default=None)
     args = parser.parse_args()
 
     run_dir = args.run_dir
+    if args.tag is not None and not TAG_RE.fullmatch(args.tag):
+        raise ValueError("tag must match [A-Za-z0-9_.-]+")
+
     config_path = run_dir / "config.yaml"
     if not config_path.exists():
         raise FileNotFoundError(f"Missing config file: {config_path}")
@@ -101,6 +110,7 @@ def main() -> None:
     summary.update(
         {
             "fold_index": fold_index,
+            "tag": args.tag,
             "matching_radius": matching_radius,
             "tau_mine_pos": tau_mine[0],
             "tau_mine_neg": tau_mine[1],
@@ -110,8 +120,11 @@ def main() -> None:
         }
     )
 
-    relations_path = run_dir / f"fold_{fold_index}_prediction_relations.csv"
-    summary_path = run_dir / f"fold_{fold_index}_relation_summary.json"
+    relations_path, summary_path = relation_artifact_paths(
+        run_dir,
+        fold_index=fold_index,
+        tag=args.tag,
+    )
     write_relation_csv(relation_rows, relations_path)
     write_relation_summary(summary, summary_path)
 

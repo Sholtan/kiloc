@@ -1,0 +1,37 @@
+seed: 41
+paths_device: h200
+epochs: 20
+batch_size: 128
+num_workers: 8
+lr: 3.0e-4
+weight_decay: 1.0e-4
+is_pretrained: true
+embedding_dim: 128
+balanced_sampling: true
+
+dataset:
+  crop_size: 64
+  resize_hw: [128, 128]
+  input_normalization: imagenet
+  cache_images: false
+  annotated_train_table: cells_tables/train_points.csv
+  mined_train_table: checkpoints/oof/full120_5fold/train_oof_mined_fp_rexclude30.csv
+  image_split:
+    seed: 41
+    train_ratio: 0.70
+    validation_ratio: 0.15
+    test_ratio: 0.15
+
+scheduler:
+  name: ReduceLROnPlateau
+  mode: max
+  factor: 0.5
+  patience: 3
+  min_lr: 1.0e-6
+
+hardest_samples:
+  enabled: false
+  ranking: entropy
+  top_k: 20
+  export_images: false
+  splits: ["validation", "test"]

@@ -21,12 +21,14 @@ def main() -> None:
     parser.add_argument("--out-csv", default=None, type=Path)
     parser.add_argument("--out-summary", default=None, type=Path)
     parser.add_argument("--fold-indices", nargs="*", type=int, default=None)
+    parser.add_argument("--relation-tag", default=None)
     parser.add_argument("--mining-tag", default="oof_kept_for_mining")
     args = parser.parse_args()
 
     relation_csvs = discover_relation_csvs(
         args.oof_run_dir,
         fold_indices=args.fold_indices,
+        tag=args.relation_tag,
     )
 
     relation_rows = []
@@ -46,6 +48,7 @@ def main() -> None:
     )
     summary["oof_run_dir"] = str(args.oof_run_dir)
     summary["mining_tag"] = args.mining_tag
+    summary["relation_tag"] = args.relation_tag
 
     out_csv = args.out_csv if args.out_csv is not None else args.oof_run_dir / "train_oof_mined_fp.csv"
     out_summary = (

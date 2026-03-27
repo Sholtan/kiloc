@@ -7,9 +7,12 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from kiloc.oof import relation_artifact_dir
+
 
 FOLD_DIR_RE = re.compile(r"^fold_(\d+)$")
 FOLD_RELATION_CSV_RE = re.compile(r"^fold_(\d+)_prediction_relations\.csv$")
+TAGGED_FOLD_RELATION_CSV_RE = re.compile(r"^fold_(\d+)_prediction_relations_([A-Za-z0-9_.-]+)\.csv$")
 
 
 def _image_sort_key(image_id: str) -> tuple[int, str]:
@@ -22,12 +25,19 @@ def discover_relation_csvs(
     oof_run_dir: str | Path,
     *,
     fold_indices: list[int] | tuple[int, ...] | None = None,
+    tag: str | None = None,
 ) -> list[tuple[int, Path]]:
     oof_run_dir = Path(oof_run_dir)
     discovered: dict[int, Path] = {}
 
-    for path in oof_run_dir.glob("fold_*_prediction_relations.csv"):
-        match = FOLD_RELATION_CSV_RE.match(path.name)
+    pattern = "fold_*_prediction_relations.csv" if tag is None else f"fold_*_prediction_relations_{tag}.csv"
+
+    for path in oof_run_dir.glob(pattern):
+        match = (
+            FOLD_RELATION_CSV_RE.match(path.name)
+            if tag is None
+            else TAGGED_FOLD_RELATION_CSV_RE.match(path.name)
+        )
         if match is None:
             continue
         discovered[int(match.group(1))] = path
@@ -39,9 +49,19 @@ def discover_relation_csvs(
         if match is None:
             continue
         fold_index = int(match.group(1))
-        relation_csv_path = child / f"fold_{fold_index}_prediction_relations.csv"
-        if relation_csv_path.exists():
-            discovered[fold_index] = relation_csv_path
+        relation_csv_name = (
+            f"fold_{fold_index}_prediction_relations.csv"
+            if tag is None
+            else f"fold_{fold_index}_prediction_relations_{tag}.csv"
+        )
+        candidate_paths = [
+            relation_artifact_dir(child) / relation_csv_name,
+            child / relation_csv_name,
+        ]
+        for relation_csv_path in candidate_paths:
+            if relation_csv_path.exists():
+                discovered[fold_index] = relation_csv_path
+                break
 
     if not discovered:
         raise FileNotFoundError(f"No fold relation CSVs found under {oof_run_dir}")

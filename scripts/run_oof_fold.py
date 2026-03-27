@@ -24,7 +24,12 @@ from kiloc.evaluation.metrics import compute_metrics
 from kiloc.evaluation.tta import tta_forward
 from kiloc.losses.losses import SigmoidSumHuber, SigmoidWeightedMSE, sigmoid_focal_loss
 from kiloc.model.kiloc_net import KiLocNet
-from kiloc.oof import build_raw_prediction_rows, load_image_ids, write_raw_prediction_csv
+from kiloc.oof import (
+    build_raw_prediction_rows,
+    load_image_ids,
+    relation_artifact_paths,
+    write_raw_prediction_csv,
+)
 from kiloc.oof import (
     build_relation_rows,
     load_gt_by_image_from_image_paths,
@@ -610,8 +615,10 @@ def main() -> None:
             "r_interclass_conflict": float(cfg["matching_radius"]),
         }
     )
-    relations_path = run_dir / f"fold_{args.fold_index}_prediction_relations.csv"
-    relation_summary_path = run_dir / f"fold_{args.fold_index}_relation_summary.json"
+    relations_path, relation_summary_path = relation_artifact_paths(
+        run_dir,
+        fold_index=args.fold_index,
+    )
     write_relation_csv(relation_rows, relations_path)
     write_relation_summary(relation_summary, relation_summary_path)
 
@@ -628,8 +635,8 @@ def main() -> None:
         "best_eval_checkpoint": best_eval_checkpoint_path.name,
         "threshold_pos": threshold[0],
         "threshold_neg": threshold[1],
-        "relation_csv": relations_path.name,
-        "relation_summary_json": relation_summary_path.name,
+        "relation_csv": relations_path.relative_to(run_dir).as_posix(),
+        "relation_summary_json": relation_summary_path.relative_to(run_dir).as_posix(),
     }
 
     with (run_dir / "oof_metadata.json").open("w", encoding="utf-8") as f:
